@@ -26,13 +26,65 @@ using InstructionArg = std::variant<
 	std::vector<Instruction>,
 	MemArg>;
 
+struct LocalInstance {
+	Local type;
+	Value value;
+};
+
+struct FunctionInstance {
+	FunctionType signature;
+	std::vector<Instruction> expression;
+	std::vector<LocalInstance> locals;
+	std::string name;
+	int size;
+};
+
+class MemoryInstance {
+public:
+	MemoryInstance(int size) {
+		resize(size);
+	}
+
+	void resize(int new_size) {
+		bytes.resize(new_size * PAGE_SIZE);
+		size = new_size * PAGE_SIZE;
+	}
+
+	void copy(char *bytes, int num, int pos) {
+		for (int i = 0; i < num; i++)
+			bytes[pos + i] = bytes[i];
+	}
+
+	int get_size() const {
+		return size;
+	}
+
+	template<typename T>
+	void store(T value, int pos) {
+		auto data = reinterpret_cast<char*>(&value);
+		for (int i = 0; i < sizeof(T); i++)
+			bytes[pos + i] = data[i];
+	}
+private:
+	int size;
+	std::vector<char> bytes;
+};
+
+struct TableInstance {
+	int max;
+	std::vector<int> function_address;
+};
 
 struct InterpreterState {
 	InterpreterState() : pc(0) {}
-	std::vector<Code> functions;
+	std::vector<FunctionInstance> functions;
+	std::vector<MemoryInstance> memory;
+	std::vector<TableInstance> tables;
+	std::vector<GlobalValue> globals;
+	Stack stack;
+
 	int current_function;
 	int pc;
-	Stack stack;
 };
 
 struct Instruction {
@@ -42,10 +94,10 @@ struct Instruction {
 
 class Interpreter {
 public:
-	bool interpret(InterpreterState &state);
-	std::optional<GlobalValue> interpret_global(
+	static bool interpret(InterpreterState &state);
+	static std::optional<GlobalValue> interpret_global(
 			std::ifstream &stream);
-	std::vector<Instruction> decode_code(std::ifstream &stream);
+	static std::vector<Instruction> decode_code(std::ifstream &stream);
 };
 
 }/* namespace bearwasm*/

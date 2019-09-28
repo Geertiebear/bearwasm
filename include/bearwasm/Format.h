@@ -33,6 +33,7 @@ struct Code {
 };
 
 struct GlobalValue {
+	BinaryType type;
 	Value value;
 	bool mut;
 };

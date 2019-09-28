@@ -149,7 +149,7 @@ void Module::parse_memory_section() {
 void Module::parse_global_section() {
 	auto num_global_types = stream_read<uint8_t>(file);
 	for (int i = 0; i < num_global_types; i++) {
-		auto ret = interpreter.interpret_global(file);
+		auto ret = Interpreter::interpret_global(file);
 		if (!ret)
 			panic("Error decoding global");
 		globals.push_back(*ret);
@@ -212,7 +212,7 @@ void Module::parse_code_section() {
 		}
 
 		auto start_pos = file.tellg();
-		auto instructions = interpreter.decode_code(file);
+		auto instructions = Interpreter::decode_code(file);
 
 		code.size = file.tellg() - start_pos;
 		code.expression = instructions;

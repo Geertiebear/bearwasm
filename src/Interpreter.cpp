@@ -7,6 +7,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 	auto &pc = state.pc;
 	auto &functions = state.functions;
 	auto &stack = state.stack;
+	auto &memory = state.memory[0];
 	auto &expression = functions[current_function].expression;
 
 	while (pc < expression.size()) {
@@ -21,6 +22,50 @@ bool Interpreter::interpret(InterpreterState &state) {
 				break;
 			}
 				/* TODO: floating point const instructions */
+			case GLOBAL_GET: {
+				auto idx = std::get<uint32_t>(instruction.arg);
+				stack.push(state.globals[idx].value);
+				break;
+			}
+			case GLOBAL_SET: {
+				auto idx = std::get<uint32_t>(instruction.arg);
+				auto type = state.globals[idx].type;
+				state.globals[idx].value = stack.
+					pop_variant(type);
+				break;
+			}
+			case LOCAL_SET: {
+				auto idx = std::get<uint32_t>(instruction.arg);
+				auto type = state.functions[current_function].
+					locals[idx].type;
+				state.functions[current_function].locals[idx].
+					value = stack.pop_variant(type);
+				break;
+			}
+			case LOCAL_GET: {
+				auto idx = std::get<uint32_t>(instruction.arg);
+				stack.push(state.functions[current_function].
+						locals[idx].value);
+				break;
+			}
+			case I_32_SUB: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				//TODO: spec says to mod 2^32
+				std::cout << "sub arg1: " << arg1 << " arg2: " << arg2 << std::endl;
+				std::cout << "sub: " << arg1 - arg2 << std::endl;
+				stack.push<int32_t>((arg1 - arg2));
+				break;
+			}
+			case I_32_STORE: {
+				auto memarg = std::get<MemArg>(instruction.arg);
+				auto t = stack.pop<int32_t>();
+				auto i = stack.pop<int32_t>();
+				if (i + memarg.offset + 4 > memory.get_size())
+					panic("Reading too far!");
+				memory.store<int32_t>(t, i + memarg.offset);
+				break;
+			}
 			default:
 				panic("Unknown instruction encountered " +
 						std::to_string(expression[pc].type));
@@ -34,6 +79,7 @@ std::optional<GlobalValue> Interpreter::interpret_global(
 		std::ifstream &stream) {
 	GlobalValue ret;
 	auto type = static_cast<BinaryType>(stream.get());
+	ret.type = type;
 	ret.mut = static_cast<bool>(stream.get());
 
 	InterpreterState state;
@@ -123,7 +169,10 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				inst.type = *instruction;
 				break;
 			}
-			case SIZE_0: break;
+			case SIZE_0: {
+				inst.type = *instruction;
+				break;
+			}
 			case SIZE_MEMARG: {
 				auto align = decode_varuint_s<uint32_t>(stream);
 				auto offset = decode_varuint_s<uint32_t>(stream);

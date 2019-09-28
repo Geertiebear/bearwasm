@@ -1,5 +1,5 @@
 #include <iostream>
-#include <bearwasm/Module.h>
+#include <bearwasm/VirtualMachine.h>
 
 int main(int argc, char **argv) {
 	if (argc < 2) {
@@ -7,6 +7,7 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
-	bearwasm::Module module((std::string(argv[1])));	
+	bearwasm::VirtualMachine vm{std::string(argv[1])};
+	vm.execute();
 	return 0;
 }

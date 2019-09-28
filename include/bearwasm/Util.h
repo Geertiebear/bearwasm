@@ -118,6 +118,7 @@ std::optional<std::string> read_string(std::ifstream &stream) {
 	if (res.fail()) return std::nullopt;
 	return ret;
 }
+
 /*
  * In the future I may want to abstract away the stream
  * of bytes that's being decoded so i'll keep this here for now

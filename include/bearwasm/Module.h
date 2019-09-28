@@ -18,6 +18,14 @@ using FunctionCodes = std::vector<Code>;
 class Module {
 public:
 	Module(const std::string &path);
+
+	FunctionTypes function_types;
+	Functions functions;
+	Tables tables;
+	MemoryTypes memory_types;
+	Globals globals;
+	Exports exports;
+	FunctionCodes function_code;
 private:
 	void read_sections();
 	void parse_type_section();
@@ -37,16 +45,7 @@ private:
 	void dump_exports();
 	void dump_code();
 
-	FunctionTypes function_types;
-	Functions functions;
-	Tables tables;
-	MemoryTypes memory_types;
-	Globals globals;
-	Exports exports;
-	FunctionCodes function_code;
 	std::ifstream file;
-
-	Interpreter interpreter;
 };
 
 } /* namespace bearwasm */

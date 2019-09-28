@@ -6,6 +6,8 @@
 
 namespace bearwasm {
 
+static constexpr int PAGE_SIZE = 65536;
+
 enum Sections : uint8_t {
 	SECTION_CUSTOM = 0,
 	SECTION_TYPE,
