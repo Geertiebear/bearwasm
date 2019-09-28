@@ -1,0 +1,108 @@
+#ifndef BEARWASM_BINARYFORMAT_H
+#define BEARWASM_BINARYFORMAT_H
+
+#include <stdint.h>
+#include <map>
+
+namespace bearwasm {
+
+enum Sections : uint8_t {
+	SECTION_CUSTOM = 0,
+	SECTION_TYPE,
+	SECTION_IMPORT,
+	SECTION_FUNCTION,
+	SECTION_TABLE,
+	SECTION_MEMORY,
+	SECTION_GLOBAL,
+	SECTION_EXPORT,
+	SECTION_START,
+	SECTION_ELEMENT,
+	SECTION_CODE,
+};
+
+enum BinaryType : uint8_t {
+	I_32 = 0x7F,
+	I_64 = 0x7E,
+	F_32 = 0x7D,
+	F_64 = 0x7C,
+};
+
+enum TableType : uint8_t {
+	TABLE_FUNCREF = 0x70,
+};
+
+enum Instructions : uint8_t {
+	INSTR_UNREACHABLE = 0x0,
+	INSTR_NOP = 0x01,
+	INSTR_BLOCK = 0x02,
+	INSTR_LOOP = 0x03,
+	INSTR_IF = 0x04,
+	INSTR_RETURN = 0xF,
+	INSTR_CALL = 0x10,
+	LOCAL_GET = 0x20,
+	LOCAL_SET = 0x21,
+	GLOBAL_GET = 0x23,
+	GLOBAL_SET = 0x24,
+	I_32_LOAD = 0x28,
+	I_32_LOAD_8_U = 0x2D,
+	I_32_STORE = 0x36,
+	I_32_CONST = 0x41,
+	I_64_CONST = 0x42,
+	F_32_CONST = 0x43,
+	F_64_CONST = 0x44,
+	I_32_ADD = 0x6A,
+	I_32_SUB = 0x6B,
+	I_32_SHL = 0x74,
+	I_32_SHR_S = 0x75,
+	I_64_DIV_U = 0x80,
+};
+
+enum ExportType : uint8_t {
+	EXPORT_FUNC = 0,
+	EXPORT_TABLE,
+	EXPORT_MEM,
+	EXPORT_GLOBAL,
+};
+
+enum InstructionArgSize {
+	SIZE_VARIABLE,
+	SIZE_U8,
+	SIZE_I32,
+	SIZE_I64,
+	SIZE_U32,
+	SIZE_U64,
+	SIZE_F32,
+	SIZE_F64,
+	SIZE_0,
+	SIZE_MEMARG,
+};
+
+static const std::map<Instructions, InstructionArgSize> instruction_sizes {
+	{INSTR_BLOCK, SIZE_VARIABLE},
+	{INSTR_LOOP, SIZE_VARIABLE},
+	{INSTR_IF, SIZE_VARIABLE},
+	{I_32_CONST, SIZE_I32},
+	{I_64_CONST, SIZE_I64},
+	{F_32_CONST, SIZE_F32},
+	{F_64_CONST, SIZE_F64},
+	{I_64_DIV_U, SIZE_0},
+	{INSTR_UNREACHABLE, SIZE_0},
+	{INSTR_NOP, SIZE_0},
+	{INSTR_CALL, SIZE_U32},
+	{LOCAL_GET, SIZE_U32},
+	{LOCAL_SET, SIZE_U32},
+	{GLOBAL_GET, SIZE_U32},
+	{I_32_SUB, SIZE_0},
+	{I_32_STORE, SIZE_MEMARG},
+	{I_32_LOAD, SIZE_MEMARG},
+	{I_32_LOAD_8_U, SIZE_MEMARG},
+	{I_32_SHL, SIZE_0},
+	{I_32_SHR_S, SIZE_0},
+	{I_32_ADD, SIZE_0},
+	{INSTR_RETURN, SIZE_0},
+	{GLOBAL_SET, SIZE_U32},
+};
+
+} /* namespace bearwasm */
+
+#endif
