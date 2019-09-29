@@ -206,7 +206,7 @@ void Module::parse_code_section() {
 			if (!count)
 				panic("Unable to read local count");
 			auto type = stream_read<BinaryType>(file);
-			for (int k = 0; k < *count; k++)
+			for (size_t k = 0; k < *count; k++)
 				code.locals.push_back(*type);
 			j += *count;
 		}
@@ -249,7 +249,7 @@ void Module::dump_function_types() {
 
 void Module::dump_functions() {
 	std::cout << "Functions:" << std::endl;
-	for (int i = 0; i < functions.size(); i++) {
+	for (size_t i = 0; i < functions.size(); i++) {
 		auto type_idx = functions[i];
 		std::cout << "\t[" << i << "] typeidx " << type_idx
 			<< std::endl;
@@ -265,7 +265,7 @@ static std::string table_type_to_string(TableType type) {
 
 void Module::dump_tables() {
 	std::cout << "Tables:" << std::endl;
-	for (int i = 0; i < tables.size(); i++) {
+	for (size_t i = 0; i < tables.size(); i++) {
 		auto &table = tables[i];
 		std::cout << "\t[" << i << "] type: " <<
 			table_type_to_string(table.type)

@@ -24,7 +24,7 @@ int VirtualMachine::execute() {
 }
 
 void VirtualMachine::build_function_instances() {
-	for (int i = 0; i < module.function_code.size(); i++) {
+	for (size_t i = 0; i < module.function_code.size(); i++) {
 		FunctionInstance instance;
 		instance.expression = module.function_code[i].expression;
 		instance.size = module.function_code[i].size;

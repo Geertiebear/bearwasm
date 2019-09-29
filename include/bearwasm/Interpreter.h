@@ -62,7 +62,7 @@ public:
 	template<typename T>
 	void store(T value, int pos) {
 		auto data = reinterpret_cast<char*>(&value);
-		for (int i = 0; i < sizeof(T); i++)
+		for (size_t i = 0; i < sizeof(T); i++)
 			bytes[pos + i] = data[i];
 	}
 private:
@@ -84,7 +84,7 @@ struct InterpreterState {
 	Stack stack;
 
 	int current_function;
-	int pc;
+	size_t pc;
 };
 
 struct Instruction {

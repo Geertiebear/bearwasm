@@ -61,7 +61,9 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto memarg = std::get<MemArg>(instruction.arg);
 				auto t = stack.pop<int32_t>();
 				auto i = stack.pop<int32_t>();
-				if (i + memarg.offset + 4 > memory.get_size())
+				auto limit = static_cast<int>(
+						i + memarg.offset + 4);
+				if (limit > memory.get_size())
 					panic("Reading too far!");
 				memory.store<int32_t>(t, i + memarg.offset);
 				break;
