@@ -14,8 +14,8 @@ VirtualMachine::VirtualMachine(const std::string &path) :
 	//argv
 	state.functions[2].locals[1].value = static_cast<int32_t>(1);
 
-	char argv[] = "\0x3\0x4\0x3\0x3";
-	state.memory[0].copy(argv, sizeof(argv), 1);
+	char argv[] = "\xD\x0\x0\x0\xE\x0\x0\x0\x33\x34";
+	state.memory[0].copy(argv, sizeof(argv), 5);
 }
 
 int VirtualMachine::execute() {
@@ -29,6 +29,12 @@ void VirtualMachine::build_function_instances() {
 		instance.expression = module.function_code[i].expression;
 		instance.size = module.function_code[i].size;
 		instance.signature = module.function_types[module.functions[i]];
+		for (const auto param : instance.signature.parameters) {
+			LocalInstance local_instance;
+			local_instance.type = param;
+			local_instance.value = 0;
+			instance.locals.push_back(local_instance);
+		}
 		for (auto &local : module.function_code[i].locals) {
 			LocalInstance local_instance;
 			local_instance.type = local;

@@ -2,6 +2,55 @@
 
 namespace bearwasm {
 
+static void pop_args(InterpreterState &state, int idx) {
+	auto &next = state.functions[idx];
+	const auto &params = next.signature.parameters;
+	for (size_t i = 0; i < params.size(); i++) {
+		const auto param = params[i];
+		switch (param) {
+			case I_32: {
+				auto value = state.stack.pop<
+					int32_t>();
+				next.locals[i].value = value;
+				break;
+			}
+			case I_64: {
+				auto value = state.stack.pop<
+					int64_t>();
+				next.locals[i].value = value;
+				break;
+			}
+			case F_32: {
+				auto value = state.stack.pop<
+					float>();
+				next.locals[i].value = value;
+				break;
+			}
+			case F_64: {
+				auto value = state.stack.pop<
+					double>();
+				next.locals[i].value = value;
+				break;
+			}
+			default:
+				   panic("Unkown function arg");
+		}
+	}
+}
+
+static void invoke_function(InterpreterState &state, int idx) {
+	pop_args(state, idx);
+
+	Frame frame;
+	frame.sp = state.stack.get_sp();
+	frame.pc = state.pc + 1;
+	state.callstack.push(frame);
+
+	state.current_function = idx;
+	state.stack.set_sp(0);
+	state.pc = 0;
+}
+
 bool Interpreter::interpret(InterpreterState &state) {
 	auto &current_function = state.current_function;
 	auto &pc = state.pc;
@@ -11,6 +60,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 	auto &expression = functions[current_function].expression;
 
 	while (pc < expression.size()) {
+		std::cout << pc << std::endl;
 		const auto &instruction = expression[pc];
 		switch (instruction.type) {
 			case I_32_CONST: {
@@ -48,6 +98,12 @@ bool Interpreter::interpret(InterpreterState &state) {
 						locals[idx].value);
 				break;
 			}
+			case I_32_ADD: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				stack.push<int32_t>(arg1 + arg2);
+				break;
+			}
 			case I_32_SUB: {
 				auto arg2 = stack.pop<int32_t>();
 				auto arg1 = stack.pop<int32_t>();
@@ -55,6 +111,18 @@ bool Interpreter::interpret(InterpreterState &state) {
 				std::cout << "sub arg1: " << arg1 << " arg2: " << arg2 << std::endl;
 				std::cout << "sub: " << arg1 - arg2 << std::endl;
 				stack.push<int32_t>((arg1 - arg2));
+				break;
+			}
+			case I_32_SHL: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				stack.push<int32_t>(arg1 << arg2);
+				break;
+			}
+			case I_32_SHR_S: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				stack.push<int32_t>(arg1 >> arg2);
 				break;
 			}
 			case I_32_STORE: {
@@ -67,6 +135,48 @@ bool Interpreter::interpret(InterpreterState &state) {
 					panic("Reading too far!");
 				memory.store<int32_t>(t, i + memarg.offset);
 				break;
+			}
+			case I_32_LOAD: {
+				auto memarg = std::get<MemArg>(instruction.arg);
+				auto i = stack.pop<int32_t>();
+				auto limit = static_cast<int>(i +
+						memarg.offset + 4);
+				if (limit > memory.get_size())
+					panic("Reading too far!");
+				std::cout << "reading from " << i + memarg.offset << std::endl;
+				auto result = memory.load<int32_t>(i + memarg.offset);
+				stack.push<int32_t>(result);
+				break;
+			}
+			case I_32_LOAD_8_U: {
+				auto memarg = std::get<MemArg>(instruction.arg);
+				auto i = stack.pop<int32_t>();
+				auto limit = static_cast<int>(i +
+						memarg.offset + 4);
+				if (limit > memory.get_size())
+					panic("Reading too far!");
+				std::cout << "reading from " << i + memarg.offset << std::endl;
+				auto result = memory.load<uint8_t>(i + memarg.offset);
+				stack.push<int32_t>(result);
+				break;
+			}
+			case I_32_LOAD_8_S: {
+				auto memarg = std::get<MemArg>(instruction.arg);
+				auto i = stack.pop<int32_t>();
+				auto limit = static_cast<int>(i +
+						memarg.offset + 4);
+				if (limit > memory.get_size())
+					panic("Reading too far!");
+				std::cout << "reading from " << i + memarg.offset << std::endl;
+				auto result = memory.load<int8_t>(i + memarg.offset);
+				stack.push<int32_t>(result);
+				break;
+			}
+			case INSTR_CALL: {
+				auto idx = std::get<uint32_t>(instruction.arg);
+				invoke_function(state, idx);
+				expression = functions[current_function].expression;
+				continue;
 			}
 			default:
 				panic("Unknown instruction encountered " +

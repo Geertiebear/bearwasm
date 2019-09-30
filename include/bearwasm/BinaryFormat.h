@@ -46,6 +46,7 @@ enum Instructions : uint8_t {
 	GLOBAL_GET = 0x23,
 	GLOBAL_SET = 0x24,
 	I_32_LOAD = 0x28,
+	I_32_LOAD_8_S = 0x2C,
 	I_32_LOAD_8_U = 0x2D,
 	I_32_STORE = 0x36,
 	I_32_CONST = 0x41,
@@ -103,6 +104,7 @@ static const std::map<Instructions, InstructionArgSize> instruction_sizes {
 	{I_32_ADD, SIZE_0},
 	{INSTR_RETURN, SIZE_0},
 	{GLOBAL_SET, SIZE_U32},
+	{I_32_LOAD_8_S, SIZE_MEMARG},
 };
 
 } /* namespace bearwasm */

@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 #include <fstream>
+#include <stack>
 #include <bearwasm/Stack.h>
 #include <bearwasm/Format.h>
 
@@ -50,9 +51,9 @@ public:
 		size = new_size * PAGE_SIZE;
 	}
 
-	void copy(char *bytes, int num, int pos) {
+	void copy(char *data, int num, int pos) {
 		for (int i = 0; i < num; i++)
-			bytes[pos + i] = bytes[i];
+			bytes[pos + i] = data[i];
 	}
 
 	int get_size() const {
@@ -65,6 +66,15 @@ public:
 		for (size_t i = 0; i < sizeof(T); i++)
 			bytes[pos + i] = data[i];
 	}
+
+	template<typename T>
+	T load(int pos) {
+		T ret;
+		auto data = reinterpret_cast<char*>(&ret);
+		for (size_t i = 0; i < sizeof(T); i++)
+			data[i] = bytes[pos + i];
+		return ret;
+	}
 private:
 	int size;
 	std::vector<char> bytes;
@@ -75,6 +85,11 @@ struct TableInstance {
 	std::vector<int> function_address;
 };
 
+struct Frame {
+	int pc;
+	int sp;
+};
+
 struct InterpreterState {
 	InterpreterState() : pc(0) {}
 	std::vector<FunctionInstance> functions;
@@ -82,6 +97,7 @@ struct InterpreterState {
 	std::vector<TableInstance> tables;
 	std::vector<GlobalValue> globals;
 	Stack stack;
+	std::stack<Frame> callstack;
 
 	int current_function;
 	size_t pc;

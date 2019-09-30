@@ -52,6 +52,13 @@ public:
 		}
 	}
 
+	int get_sp() const {
+		return sp;
+	}
+
+	void set_sp(int val) {
+		sp = val;
+	}
 private:
 	std::vector<uint8_t> bytes;
 	std::vector<int> labels;
