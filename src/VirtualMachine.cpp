@@ -13,6 +13,11 @@ VirtualMachine::VirtualMachine(const std::string &path) :
 	state.functions[2].locals[0].value = static_cast<int32_t>(2);
 	//argv
 	state.functions[2].locals[1].value = static_cast<int32_t>(1);
+	
+	Frame frame;
+	frame.pc = PC_END;
+	frame.prev = 0;
+	state.callstack.push(frame);
 
 	char argv[] = "\xD\x0\x0\x0\xE\x0\x0\x0\x33\x34";
 	state.memory[0].copy(argv, sizeof(argv), 5);

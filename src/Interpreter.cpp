@@ -42,12 +42,11 @@ static void invoke_function(InterpreterState &state, int idx) {
 	pop_args(state, idx);
 
 	Frame frame;
-	frame.sp = state.stack.get_sp();
 	frame.pc = state.pc + 1;
+	frame.prev = state.current_function;
 	state.callstack.push(frame);
 
 	state.current_function = idx;
-	state.stack.set_sp(0);
 	state.pc = 0;
 }
 
@@ -57,11 +56,11 @@ bool Interpreter::interpret(InterpreterState &state) {
 	auto &functions = state.functions;
 	auto &stack = state.stack;
 	auto &memory = state.memory[0];
-	auto &expression = functions[current_function].expression;
+	auto expression = &functions[current_function].expression;
 
-	while (pc < expression.size()) {
+	while (pc < expression->size()) {
 		std::cout << pc << std::endl;
-		const auto &instruction = expression[pc];
+		const auto &instruction = (*expression)[pc];
 		switch (instruction.type) {
 			case I_32_CONST: {
 				stack.push(std::get<int32_t>(instruction.arg));
@@ -86,6 +85,8 @@ bool Interpreter::interpret(InterpreterState &state) {
 			}
 			case LOCAL_SET: {
 				auto idx = std::get<uint32_t>(instruction.arg);
+				std::cout << "idx " << idx << std::endl;
+				std::cout << "size: " << state.functions[current_function].locals.size() << std::endl;
 				auto type = state.functions[current_function].
 					locals[idx].type;
 				state.functions[current_function].locals[idx].
@@ -175,12 +176,21 @@ bool Interpreter::interpret(InterpreterState &state) {
 			case INSTR_CALL: {
 				auto idx = std::get<uint32_t>(instruction.arg);
 				invoke_function(state, idx);
-				expression = functions[current_function].expression;
+				expression = &functions[current_function].expression;
+				continue;
+			}
+			case INSTR_RETURN: {
+				auto frame = state.callstack.top();
+				state.callstack.pop();
+				if (frame.pc == PC_END) return true;
+				state.current_function = frame.prev;
+				state.pc = frame.pc;
+				expression = &functions[current_function].expression;
 				continue;
 			}
 			default:
 				panic("Unknown instruction encountered " +
-						std::to_string(expression[pc].type));
+						std::to_string((*expression)[pc].type));
 		};
 		pc++;
 	}

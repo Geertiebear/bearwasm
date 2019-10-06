@@ -10,6 +10,8 @@
 
 namespace bearwasm {
 
+static constexpr int PC_END = -1;
+
 struct Instruction;
 
 struct MemArg {
@@ -87,7 +89,7 @@ struct TableInstance {
 
 struct Frame {
 	int pc;
-	int sp;
+	int prev;
 };
 
 struct InterpreterState {
