@@ -8,7 +8,6 @@ VirtualMachine::VirtualMachine(const std::string &path) :
 
 	build_function_instances();
 	build_memory_instances();
-	state.current_function = 2;
 	state.globals = module.globals;
 	
 	Frame frame;
@@ -18,6 +17,13 @@ VirtualMachine::VirtualMachine(const std::string &path) :
 }
 
 int VirtualMachine::execute(int argc, char **argv) {
+	state.current_function = -1;
+	for (const auto &[key, value] : module.function_names)
+		if (value == "main")
+			state.current_function = key;
+	if (state.current_function == -1)
+		panic("Could not find main function!");
+
 	//argc
 	state.functions[2].locals[0].value = static_cast<int32_t>(argc);
 	//argv
@@ -44,6 +50,9 @@ void VirtualMachine::build_function_instances() {
 		instance.expression = module.function_code[i].expression;
 		instance.size = module.function_code[i].size;
 		instance.signature = module.function_types[module.functions[i]];
+		auto name_it = module.function_names.find(i);
+		if (name_it != module.function_names.end())
+			instance.name = name_it->second;
 		for (const auto param : instance.signature.parameters) {
 			LocalInstance local_instance;
 			local_instance.type = param;
@@ -56,7 +65,6 @@ void VirtualMachine::build_function_instances() {
 			local_instance.value = 0;
 			instance.locals.push_back(local_instance);
 		}
-		/* TODO: function name */
 		state.functions.push_back(instance);
 	}
 }

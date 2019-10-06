@@ -2,6 +2,7 @@
 #define BEARWASM_MODULE_H
 
 #include <string>
+#include <map>
 #include <fstream>
 #include <bearwasm/Format.h>
 #include <bearwasm/Interpreter.h>
@@ -14,6 +15,7 @@ using Tables = std::vector<Table>;
 using MemoryTypes = std::vector<MemoryType>;
 using Globals = std::vector<GlobalValue>;
 using FunctionCodes = std::vector<Code>;
+using FunctionNames = std::map<uint32_t, std::string>;
 
 class Module {
 public:
@@ -26,6 +28,7 @@ public:
 	Globals globals;
 	Exports exports;
 	FunctionCodes function_code;
+	FunctionNames function_names;
 private:
 	void read_sections();
 	void parse_type_section();
@@ -35,6 +38,7 @@ private:
 	void parse_global_section();
 	void parse_export_section();
 	void parse_code_section();
+	void parse_custom_section(int length);
 	bool verify_signature();
 	
 	void dump_function_types();

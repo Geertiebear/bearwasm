@@ -72,6 +72,9 @@ void Module::read_sections() {
 				parse_code_section();
 				dump_code();
 				break;
+			case SECTION_CUSTOM:
+				parse_custom_section(*length);
+				break;
 			default:
 				std::cout << "Encountered unknown section with id "
 					<< static_cast<int>(*id) << std::endl;
@@ -218,6 +221,33 @@ void Module::parse_code_section() {
 		code.expression = instructions;
 
 		function_code.push_back(code);		
+	}
+}
+
+void Module::parse_custom_section(int length) {
+	auto name = read_string(file);
+	if (!name)
+		panic("Error reading name of custom section");
+	if (name == "name") {
+		/* name section */
+		/* TODO: parse names of other types besides functions */
+		auto type = decode_varuint_s<uint8_t>(file);
+		if (!type) panic("Error reading names type");
+		auto length = decode_varuint_s<uint32_t>(file);
+		if (!length) panic("Error reading names length");
+		auto num_names = decode_varuint_s<uint32_t>(file);
+		if (!num_names) panic("Error reading number of names");
+
+		for (int i = 0; i < num_names; i++) {
+			auto name_index = decode_varuint_s<uint32_t>(file);
+			auto name = read_string(file);
+			if (!name) panic("Error reading function name");
+			function_names.insert(std::make_pair(*name_index, *name));
+		}
+	} else {
+		std::cout << "Encountered unknown custom section " <<
+			*name << std::endl;
+		file.seekg(length - (*name).length(), std::ios::cur);
 	}
 }
 
