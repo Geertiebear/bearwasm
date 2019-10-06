@@ -1,4 +1,5 @@
 #include <bearwasm/VirtualMachine.h>
+#include <string.h>
 
 namespace bearwasm {
 
@@ -9,21 +10,29 @@ VirtualMachine::VirtualMachine(const std::string &path) :
 	build_memory_instances();
 	state.current_function = 2;
 	state.globals = module.globals;
-	//argc
-	state.functions[2].locals[0].value = static_cast<int32_t>(2);
-	//argv
-	state.functions[2].locals[1].value = static_cast<int32_t>(1);
 	
 	Frame frame;
 	frame.pc = PC_END;
 	frame.prev = 0;
 	state.callstack.push(frame);
-
-	char argv[] = "\xD\x0\x0\x0\xE\x0\x0\x0\x33\x34";
-	state.memory[0].copy(argv, sizeof(argv), 5);
 }
 
-int VirtualMachine::execute() {
+int VirtualMachine::execute(int argc, char **argv) {
+	//argc
+	state.functions[2].locals[0].value = static_cast<int32_t>(argc);
+	//argv
+	state.functions[2].locals[1].value = static_cast<int32_t>(1);
+
+	int offset = 0;
+	for (int i = 0; i < argc; i++) {
+		auto arg = argv[i];
+		auto length = strlen(arg);
+		std::cout << length << std::endl;
+		uint32_t location = (5 + (argc * 4)  + offset);
+		state.memory[0].copy(reinterpret_cast<char*>(&location), 4, 5 + (i * 4));
+		state.memory[0].copy(arg, length, location);
+		offset += length;
+	}
 	Interpreter::interpret(state);
 	return 0;
 }
