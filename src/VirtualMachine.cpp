@@ -34,7 +34,8 @@ int VirtualMachine::execute(int argc, char **argv) {
 		offset += length;
 	}
 	Interpreter::interpret(state);
-	return 0;
+	auto res = state.stack.pop<uint32_t>();
+	return res;
 }
 
 void VirtualMachine::build_function_instances() {
