@@ -25,9 +25,11 @@ int VirtualMachine::execute(int argc, char **argv) {
 		panic("Could not find main function!");
 
 	//argc
-	state.functions[2].locals[0].value = static_cast<int32_t>(argc);
+	state.functions[state.current_function].locals[0].value =
+		static_cast<int32_t>(argc);
 	//argv
-	state.functions[2].locals[1].value = static_cast<int32_t>(1);
+	state.functions[state.current_function].locals[1].value =
+		static_cast<int32_t>(1);
 
 	int offset = 0;
 	for (int i = 0; i < argc; i++) {

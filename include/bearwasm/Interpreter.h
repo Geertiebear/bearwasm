@@ -5,6 +5,7 @@
 #include <vector>
 #include <fstream>
 #include <stack>
+#include <memory>
 #include <bearwasm/Stack.h>
 #include <bearwasm/Format.h>
 
@@ -18,6 +19,13 @@ struct MemArg {
 	uint32_t align, offset;
 };
 
+/* TODO: change expression to a pointer somehow
+ * to avoid copies when loading the module */
+struct Block {
+	BinaryType type;
+	Expression expression;
+};
+
 using InstructionArg = std::variant<
 	uint8_t,
 	uint32_t,
@@ -26,7 +34,7 @@ using InstructionArg = std::variant<
 	int64_t,
 	float,
 	double,
-	std::vector<Instruction>,
+	Block,
 	MemArg>;
 
 struct LocalInstance {
@@ -36,7 +44,7 @@ struct LocalInstance {
 
 struct FunctionInstance {
 	FunctionType signature;
-	std::vector<Instruction> expression;
+	Expression expression;
 	std::vector<LocalInstance> locals;
 	std::string name;
 	int size;
@@ -92,6 +100,11 @@ struct Frame {
 	int prev;
 };
 
+struct Label {
+	const Expression *prev;
+	int pc;
+};
+
 struct InterpreterState {
 	InterpreterState() : pc(0) {}
 	std::vector<FunctionInstance> functions;
@@ -100,6 +113,7 @@ struct InterpreterState {
 	std::vector<GlobalValue> globals;
 	Stack stack;
 	std::stack<Frame> callstack;
+	std::stack<Label> labelstack;
 
 	int current_function;
 	size_t pc;

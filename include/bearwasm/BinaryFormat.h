@@ -23,6 +23,7 @@ enum Sections : uint8_t {
 };
 
 enum BinaryType : uint8_t {
+	EMPTY = 0x40,
 	I_32 = 0x7F,
 	I_64 = 0x7E,
 	F_32 = 0x7D,
@@ -39,10 +40,15 @@ enum Instructions : uint8_t {
 	INSTR_BLOCK = 0x02,
 	INSTR_LOOP = 0x03,
 	INSTR_IF = 0x04,
+	INSTR_END = 0x0B,
+	BR = 0xC,
+	BR_IF = 0xD,
 	INSTR_RETURN = 0xF,
 	INSTR_CALL = 0x10,
+	INSTR_SELECT = 0x1B,
 	LOCAL_GET = 0x20,
 	LOCAL_SET = 0x21,
+	LOCAL_TEE = 0x22,
 	GLOBAL_GET = 0x23,
 	GLOBAL_SET = 0x24,
 	I_32_LOAD = 0x28,
@@ -53,8 +59,13 @@ enum Instructions : uint8_t {
 	I_64_CONST = 0x42,
 	F_32_CONST = 0x43,
 	F_64_CONST = 0x44,
+	I_32_EQZ = 0x45,
+	I_32_LT_S = 0x48,
+	I_32_GT_S = 0x4A,
 	I_32_ADD = 0x6A,
 	I_32_SUB = 0x6B,
+	I_32_MUL = 0x6C,
+	I_32_AND = 0x71,
 	I_32_SHL = 0x74,
 	I_32_SHR_S = 0x75,
 	I_64_DIV_U = 0x80,
@@ -68,7 +79,7 @@ enum ExportType : uint8_t {
 };
 
 enum InstructionArgSize {
-	SIZE_VARIABLE,
+	SIZE_BLOCK,
 	SIZE_U8,
 	SIZE_I32,
 	SIZE_I64,
@@ -81,9 +92,9 @@ enum InstructionArgSize {
 };
 
 static const std::map<Instructions, InstructionArgSize> instruction_sizes {
-	{INSTR_BLOCK, SIZE_VARIABLE},
-	{INSTR_LOOP, SIZE_VARIABLE},
-	{INSTR_IF, SIZE_VARIABLE},
+	{INSTR_BLOCK, SIZE_BLOCK},
+	{INSTR_LOOP, SIZE_BLOCK},
+	{INSTR_IF, SIZE_BLOCK},
 	{I_32_CONST, SIZE_I32},
 	{I_64_CONST, SIZE_I64},
 	{F_32_CONST, SIZE_F32},
@@ -105,6 +116,15 @@ static const std::map<Instructions, InstructionArgSize> instruction_sizes {
 	{INSTR_RETURN, SIZE_0},
 	{GLOBAL_SET, SIZE_U32},
 	{I_32_LOAD_8_S, SIZE_MEMARG},
+	{LOCAL_TEE, SIZE_U32},
+	{I_32_LT_S, SIZE_0},
+	{BR_IF, SIZE_U32},
+	{I_32_MUL, SIZE_0},
+	{I_32_GT_S, SIZE_0},
+	{INSTR_SELECT, SIZE_0},
+	{I_32_AND, SIZE_0},
+	{I_32_EQZ, SIZE_0},
+	{BR, SIZE_U32},
 };
 
 } /* namespace bearwasm */

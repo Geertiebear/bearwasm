@@ -10,6 +10,7 @@ namespace bearwasm {
 
 class Instruction;
 
+using Expression = std::vector<Instruction>;
 using MemoryType = Limit;
 using Value = std::variant<int32_t, int64_t, float, double>;
 using Local = BinaryType;
@@ -28,7 +29,7 @@ struct Table {
 
 struct Code {
 	uint32_t size;
-	std::vector<Instruction> expression;
+	Expression expression;
 	std::vector<Local> locals;
 };
 

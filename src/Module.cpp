@@ -253,6 +253,7 @@ void Module::parse_custom_section(int length) {
 
 static std::string type_to_string(BinaryType type) {
 	switch (type) {
+		case EMPTY: return "empty";
 		case I_32: return "i32";
 		case I_64: return "i64";
 		case F_32: return "f32";
