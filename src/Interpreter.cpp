@@ -5,31 +5,31 @@ namespace bearwasm {
 static void pop_args(InterpreterState &state, int idx) {
 	auto &next = state.functions[idx];
 	const auto &params = next.signature.parameters;
-	for (size_t i = 0; i < params.size(); i++) {
-		const auto param = params[i];
+	for (size_t i = params.size(); i > 0; i--) {
+		const auto param = params[i - 1];
 		switch (param) {
 			case I_32: {
 				auto value = state.stack.pop<
 					int32_t>();
-				next.locals[i].value = value;
+				next.locals[i - 1].value = value;
 				break;
 			}
 			case I_64: {
 				auto value = state.stack.pop<
 					int64_t>();
-				next.locals[i].value = value;
+				next.locals[i - 1].value = value;
 				break;
 			}
 			case F_32: {
 				auto value = state.stack.pop<
 					float>();
-				next.locals[i].value = value;
+				next.locals[i - 1].value = value;
 				break;
 			}
 			case F_64: {
 				auto value = state.stack.pop<
 					double>();
-				next.locals[i].value = value;
+				next.locals[i - 1].value = value;
 				break;
 			}
 			default:
@@ -38,16 +38,21 @@ static void pop_args(InterpreterState &state, int idx) {
 	}
 }
 
-static void invoke_function(InterpreterState &state, int idx) {
+static void invoke_function(InterpreterState &state, int idx,
+		const Expression *expression) {
 	pop_args(state, idx);
 
 	Frame frame;
 	frame.pc = state.pc + 1;
 	frame.prev = state.current_function;
+	frame.prev_expr = expression;
+	frame.labelstack_size = state.labelstack.size();
 	state.callstack.push(frame);
 
 	state.current_function = idx;
 	state.pc = 0;
+	for (auto &local : state.functions[state.current_function].locals)
+		local.value = 0;
 }
 
 bool Interpreter::interpret(InterpreterState &state) {
@@ -60,7 +65,8 @@ bool Interpreter::interpret(InterpreterState &state) {
 		.expression;
 
 	while (pc < expression->size()) {
-		std::cout << pc << std::endl;
+		std::cout << "pc " << pc << std::endl;
+		std::cout << "current_function: " << current_function << std::endl;
 		const auto &instruction = (*expression)[pc];
 		switch (instruction.type) {
 			case I_32_CONST: {
@@ -86,8 +92,6 @@ bool Interpreter::interpret(InterpreterState &state) {
 			}
 			case LOCAL_SET: {
 				auto idx = std::get<uint32_t>(instruction.arg);
-				std::cout << "idx " << idx << std::endl;
-				std::cout << "size: " << state.functions[current_function].locals.size() << std::endl;
 				auto type = state.functions[current_function].
 					locals[idx].type;
 				state.functions[current_function].locals[idx].
@@ -115,6 +119,12 @@ bool Interpreter::interpret(InterpreterState &state) {
 				stack.push<int32_t>(arg == 0);
 				break;
 			}
+			case I_32_NE: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				stack.push<int32_t>(arg1 != arg2);
+				break;
+			}
 			case I_32_LT_S: {
 				auto arg2 = stack.pop<int32_t>();
 				auto arg1 = stack.pop<int32_t>();
@@ -137,8 +147,6 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto arg2 = stack.pop<int32_t>();
 				auto arg1 = stack.pop<int32_t>();
 				//TODO: spec says to mod 2^32
-				std::cout << "sub arg1: " << arg1 << " arg2: " << arg2 << std::endl;
-				std::cout << "sub: " << arg1 - arg2 << std::endl;
 				stack.push<int32_t>((arg1 - arg2));
 				break;
 			}
@@ -174,6 +182,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 						i + memarg.offset + 4);
 				if (limit > memory.get_size())
 					panic("Reading too far!");
+				std::cout << "Storing at " << i + memarg.offset << std::endl;
 				memory.store<int32_t>(t, i + memarg.offset);
 				break;
 			}
@@ -215,7 +224,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 			}
 			case INSTR_CALL: {
 				auto idx = std::get<uint32_t>(instruction.arg);
-				invoke_function(state, idx);
+				invoke_function(state, idx, expression);
 				expression = &functions[current_function].expression;
 				continue;
 			}
@@ -223,9 +232,14 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto frame = state.callstack.top();
 				state.callstack.pop();
 				if (frame.pc == PC_END) return true;
-				state.current_function = frame.prev;
 				state.pc = frame.pc;
-				expression = &functions[current_function].expression;
+				state.current_function = frame.prev;
+				expression = frame.prev_expr;
+
+				//restore labelstack
+				const auto size = state.labelstack.size();
+				for (size_t i = frame.labelstack_size; i < size; i++)
+					state.labelstack.pop();
 				continue;
 			}
 			case INSTR_BLOCK: {
@@ -233,7 +247,8 @@ bool Interpreter::interpret(InterpreterState &state) {
 
 				Label label;
 				label.prev = expression;
-				label.pc = pc + 1;
+				label.pc_cont = pc + 1;
+				label.pc_end = pc + 1;
 				state.labelstack.push(label);
 
 				state.pc = 0;
@@ -245,7 +260,8 @@ bool Interpreter::interpret(InterpreterState &state) {
 
 				Label label;
 				label.prev = expression;
-				label.pc = pc;
+				label.pc_cont = pc;
+				label.pc_end = pc + 1;
 				state.labelstack.push(label);
 
 				state.pc = 0;
@@ -259,7 +275,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
 				expression = label.prev;
-				state.pc = label.pc;
+				state.pc = label.pc_cont;
 				continue;
 			}
 			case BR_IF: {
@@ -272,8 +288,12 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
 				expression = label.prev;
-				state.pc = label.pc;
+				state.pc = label.pc_cont;
 				continue;
+			}
+			case INSTR_DROP: {
+				stack.drop();
+				break;
 			}
 			case INSTR_SELECT: {
 				auto c = stack.pop<int32_t>();
@@ -289,7 +309,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto label = state.labelstack.top();
 				state.labelstack.pop();
 				expression = label.prev;
-				state.pc = label.pc;
+				state.pc = label.pc_end;
 				continue;
 			}
 			default:

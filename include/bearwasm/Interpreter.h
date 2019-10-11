@@ -97,12 +97,14 @@ struct TableInstance {
 
 struct Frame {
 	int pc;
+	int labelstack_size;
 	int prev;
+	const Expression *prev_expr;
 };
 
 struct Label {
 	const Expression *prev;
-	int pc;
+	int pc_cont, pc_end;
 };
 
 struct InterpreterState {

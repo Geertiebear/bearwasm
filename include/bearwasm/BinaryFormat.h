@@ -45,6 +45,7 @@ enum Instructions : uint8_t {
 	BR_IF = 0xD,
 	INSTR_RETURN = 0xF,
 	INSTR_CALL = 0x10,
+	INSTR_DROP = 0x1A,
 	INSTR_SELECT = 0x1B,
 	LOCAL_GET = 0x20,
 	LOCAL_SET = 0x21,
@@ -60,6 +61,7 @@ enum Instructions : uint8_t {
 	F_32_CONST = 0x43,
 	F_64_CONST = 0x44,
 	I_32_EQZ = 0x45,
+	I_32_NE = 0x47,
 	I_32_LT_S = 0x48,
 	I_32_GT_S = 0x4A,
 	I_32_ADD = 0x6A,
@@ -125,6 +127,8 @@ static const std::map<Instructions, InstructionArgSize> instruction_sizes {
 	{I_32_AND, SIZE_0},
 	{I_32_EQZ, SIZE_0},
 	{BR, SIZE_U32},
+	{I_32_NE, SIZE_0},
+	{INSTR_DROP, SIZE_0},
 };
 
 } /* namespace bearwasm */

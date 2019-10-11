@@ -13,6 +13,8 @@ VirtualMachine::VirtualMachine(const std::string &path) :
 	Frame frame;
 	frame.pc = PC_END;
 	frame.prev = 0;
+	frame.prev_expr = 0;
+	frame.labelstack_size = 0;
 	state.callstack.push(frame);
 }
 
