@@ -12,6 +12,7 @@
 namespace bearwasm {
 
 static constexpr int PC_END = -1;
+static constexpr int STACK_SIZE = 0x400000;
 
 struct Instruction;
 
@@ -108,7 +109,8 @@ struct Label {
 };
 
 struct InterpreterState {
-	InterpreterState() : pc(0) {}
+	InterpreterState() : stack(STACK_SIZE), pc(0)
+	{}
 	std::vector<FunctionInstance> functions;
 	std::vector<MemoryInstance> memory;
 	std::vector<TableInstance> tables;
