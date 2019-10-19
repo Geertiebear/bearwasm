@@ -133,6 +133,8 @@ public:
 	static bool interpret(InterpreterState &state);
 	static std::optional<GlobalValue> interpret_global(
 			std::ifstream &stream);
+	static std::optional<uint32_t> interpret_offset(
+			std::ifstream &stream);
 	static std::vector<Instruction> decode_code(std::ifstream &stream);
 };
 

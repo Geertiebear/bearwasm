@@ -72,6 +72,9 @@ void Module::read_sections() {
 				parse_code_section();
 				dump_code();
 				break;
+			case SECTION_DATA:
+				parse_data_section();
+				break;
 			case SECTION_CUSTOM:
 				parse_custom_section(*length);
 				break;
@@ -224,6 +227,35 @@ void Module::parse_code_section() {
 	}
 }
 
+void Module::parse_data_section() {
+	auto num_entries = decode_varuint_s<uint32_t>(file);
+	if (!num_entries)
+		panic("Error reading number of data entries");
+	for (size_t i = 0; i < *num_entries; i++) {
+		DataEntry entry;
+		auto memidx = decode_varuint_s<uint32_t>(file);
+		if (!memidx)
+			panic("Error reading memidx");
+		auto offset = Interpreter::interpret_offset(file);
+		if (!offset)
+			panic("Error reading offset");
+
+		entry.memidx = *memidx;
+		entry.offset = *offset;
+
+		auto num_bytes = decode_varuint_s<uint32_t>(file);
+		if (!num_bytes)
+			panic("Error reading size of bytes");
+		std::cout << "length of data section " << i << " " << *num_bytes << std::endl;
+		for (size_t j = 0; j < *num_bytes; j++) {
+			auto byte = stream_read<uint8_t>(file);
+			entry.bytes.push_back(*byte);
+		}
+
+		data.push_back(entry);
+	}
+}
+
 void Module::parse_custom_section(int length) {
 	auto name = read_string(file);
 	if (!name)
@@ -324,6 +356,7 @@ void Module::dump_globals() {
 		std::visit([](auto &&arg) { std::cout << arg; },
 				global.value);
 		std::cout << " mut: " << global.mut << std::endl;
+		i++;
 	}
 }
 

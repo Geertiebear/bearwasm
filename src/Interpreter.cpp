@@ -51,8 +51,11 @@ static void invoke_function(InterpreterState &state, int idx,
 
 	state.current_function = idx;
 	state.pc = 0;
-	for (auto &local : state.functions[state.current_function].locals)
-		local.value = 0;
+	const auto num_params = state.functions[idx].signature.
+		parameters.size();
+	const auto num_locals = state.functions[idx].locals.size();
+	for (auto i = num_params; i < num_locals; i++)
+		state.functions[idx].locals[i].value = 0;
 }
 
 bool Interpreter::interpret(InterpreterState &state) {
@@ -119,6 +122,12 @@ bool Interpreter::interpret(InterpreterState &state) {
 				stack.push<int32_t>(arg == 0);
 				break;
 			}
+			case I_32_EQ: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				stack.push<int32_t>(arg1 == arg2);
+				break;
+			}
 			case I_32_NE: {
 				auto arg2 = stack.pop<int32_t>();
 				auto arg1 = stack.pop<int32_t>();
@@ -131,15 +140,40 @@ bool Interpreter::interpret(InterpreterState &state) {
 				stack.push<int32_t>(arg1 < arg2);
 				break;
 			}
+			case I_32_LT_U: {
+				auto arg2 = stack.pop<uint32_t>();
+				auto arg1 = stack.pop<uint32_t>();
+				stack.push<int32_t>(arg1 < arg2);
+				break;
+			}
 			case I_32_GT_S: {
 				auto arg2 = stack.pop<int32_t>();
 				auto arg1 = stack.pop<int32_t>();
 				stack.push<int32_t>(arg1 > arg2);
 				break;
 			}
+			case I_32_GT_U: {
+				auto arg2 = stack.pop<uint32_t>();
+				auto arg1 = stack.pop<uint32_t>();
+				stack.push<int32_t>(arg1 > arg2);
+				break;
+			}
+			case I_32_LE_S: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				stack.push<int32_t>(arg1 <= arg2);
+				break;
+			}
+			case I_32_LE_U: {
+				auto arg2 = stack.pop<uint32_t>();
+				auto arg1 = stack.pop<uint32_t>();
+				stack.push<int32_t>(arg1 <= arg2);
+				break;
+			}
 			case I_32_ADD: {
 				auto arg2 = stack.pop<int32_t>();
 				auto arg1 = stack.pop<int32_t>();
+				std::cout << "Adding " << arg2 << " " << arg1 << std::endl;
 				stack.push<int32_t>(arg1 + arg2);
 				break;
 			}
@@ -162,6 +196,12 @@ bool Interpreter::interpret(InterpreterState &state) {
 				stack.push<int32_t>(arg1 & arg2);
 				break;
 			}
+			case I_32_OR: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				stack.push<int32_t>(arg1 | arg2);
+				break;
+			}
 			case I_32_SHL: {
 				auto arg2 = stack.pop<int32_t>();
 				auto arg1 = stack.pop<int32_t>();
@@ -172,6 +212,18 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto arg2 = stack.pop<int32_t>();
 				auto arg1 = stack.pop<int32_t>();
 				stack.push<int32_t>(arg1 >> arg2);
+				break;
+			}
+			case I_32_DIV_S: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				stack.push<int32_t>(arg1 / arg2);
+				break;
+			}
+			case I_32_REM_S: {
+				auto arg2 = stack.pop<int32_t>();
+				auto arg1 = stack.pop<int32_t>();
+				stack.push<int32_t>(arg1 % arg2);
 				break;
 			}
 			case I_32_STORE: {
@@ -249,6 +301,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				label.prev = expression;
 				label.pc_cont = pc + 1;
 				label.pc_end = pc + 1;
+				std::cout << "pushing label with end " << label.pc_end << std::endl;
 				state.labelstack.push(label);
 
 				state.pc = 0;
@@ -262,6 +315,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				label.prev = expression;
 				label.pc_cont = pc;
 				label.pc_end = pc + 1;
+				std::cout << "pushing label with end " << label.pc_end << std::endl;
 				state.labelstack.push(label);
 
 				state.pc = 0;
@@ -275,6 +329,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
 				expression = label.prev;
+				std::cout << "breaking to pc " << label.pc_cont << std::endl;
 				state.pc = label.pc_cont;
 				continue;
 			}
@@ -288,6 +343,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
 				expression = label.prev;
+				std::cout << "breaking to pc " << label.pc_cont << std::endl;
 				state.pc = label.pc_cont;
 				continue;
 			}
@@ -354,6 +410,20 @@ std::optional<GlobalValue> Interpreter::interpret_global(
 		       break;
 	}
 	return ret;
+}
+
+std::optional<uint32_t> Interpreter::interpret_offset(
+		std::ifstream &stream) {
+	InterpreterState state;
+	state.functions.resize(1);
+	/* TODO: write a span so we can avoid copies */
+	auto start_pos = stream.tellg();
+	state.functions[0].expression = decode_code(stream);
+	state.functions[0].size = stream.tellg() - start_pos;
+	state.current_function = 0;
+	if(!interpret(state)) return std::nullopt;
+
+	return state.stack.pop<uint32_t>();
 }
 
 std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {

@@ -20,6 +20,7 @@ enum Sections : uint8_t {
 	SECTION_START,
 	SECTION_ELEMENT,
 	SECTION_CODE,
+	SECTION_DATA,
 };
 
 enum BinaryType : uint8_t {
@@ -61,13 +62,21 @@ enum Instructions : uint8_t {
 	F_32_CONST = 0x43,
 	F_64_CONST = 0x44,
 	I_32_EQZ = 0x45,
+	I_32_EQ = 0x46,
 	I_32_NE = 0x47,
 	I_32_LT_S = 0x48,
+	I_32_LT_U = 0x49,
 	I_32_GT_S = 0x4A,
+	I_32_GT_U = 0x4B,
+	I_32_LE_S = 0x4C,
+	I_32_LE_U = 0x4D,
 	I_32_ADD = 0x6A,
 	I_32_SUB = 0x6B,
 	I_32_MUL = 0x6C,
+	I_32_DIV_S = 0x6D,
+	I_32_REM_S = 0x6F,
 	I_32_AND = 0x71,
+	I_32_OR = 0x72,
 	I_32_SHL = 0x74,
 	I_32_SHR_S = 0x75,
 	I_64_DIV_U = 0x80,
@@ -129,6 +138,14 @@ static const std::map<Instructions, InstructionArgSize> instruction_sizes {
 	{BR, SIZE_U32},
 	{I_32_NE, SIZE_0},
 	{INSTR_DROP, SIZE_0},
+	{I_32_REM_S, SIZE_0},
+	{I_32_DIV_S, SIZE_0},
+	{I_32_LE_S, SIZE_0},
+	{I_32_GT_U, SIZE_0},
+	{I_32_EQ, SIZE_0},
+	{I_32_LE_U, SIZE_0},
+	{I_32_LT_U, SIZE_0},
+	{I_32_OR, SIZE_0},
 };
 
 } /* namespace bearwasm */

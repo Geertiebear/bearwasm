@@ -9,12 +9,12 @@ void panic(const std::string &error) {
 
 std::optional<Limit> decode_limit(std::ifstream &stream) {
 	auto has_max = stream_read<uint8_t>(stream);
-	auto min = stream_read<uint8_t>(stream);
+	auto min = decode_varuint_s<uint32_t>(stream);
 	if (!min || !has_max)
 		return std::nullopt;
 	std::optional<uint8_t> max = 0;
 	if (*has_max) {
-		max = stream_read<uint8_t>(stream);
+		max = decode_varuint_s<uint32_t>(stream);
 		if (!max)
 			return std::nullopt;
 	}

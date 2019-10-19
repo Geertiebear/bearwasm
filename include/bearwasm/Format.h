@@ -48,6 +48,12 @@ struct Exports {
 	std::vector<Export> func, table, mem, global;
 };
 
+struct DataEntry {
+	int memidx;
+	int offset;
+	std::vector<uint8_t> bytes;
+};
+
 }/* namespace bearwasm */
 
 #endif
