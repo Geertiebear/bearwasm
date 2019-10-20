@@ -20,9 +20,9 @@ VirtualMachine::VirtualMachine(const std::string &path) :
 
 int VirtualMachine::execute(int argc, char **argv) {
 	state.current_function = -1;
-	for (const auto &[key, value] : module.function_names)
-		if (value == "main")
-			state.current_function = key;
+	for (const auto func : module.exports.func)
+		if (func.name == "main")
+			state.current_function = func.index;
 	if (state.current_function == -1)
 		panic("Could not find main function!");
 

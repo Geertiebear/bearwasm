@@ -9,8 +9,22 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <cstdio>
 
 namespace bearwasm {
+
+#ifdef BEARWASM_DEBUG
+static inline void log_debug(const char *msg, ...) {
+	va_list va;
+	va_start(va, msg);
+	vfprintf(stdout, msg, va);
+	va_end(va);
+}
+#else
+static inline void log_debug(const char *msg, ...) {
+	(void) msg;
+}
+#endif
 
 using Limit = std::pair<short, short>;
 

@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include <bearwasm/Format.h>
+#include <bearwasm/Util.h>
 
 namespace bearwasm {
 
@@ -22,7 +23,7 @@ public:
 
 	template<typename T>
 	void push(T value) {
-		std::cout << "pushing: " << value << std::endl;
+		log_debug("pushing: %d\n", value);
 		static_assert(sizeof(T) < UINT8_MAX);
 		/* TODO: decide if we want to dynamically grow stack */
 		assert(sp - sizeof(T) - 1  >= 0);
@@ -46,13 +47,12 @@ public:
 			data[size + i] = bytes[sp - i];
 		}
 		sp += size;
-		std::cout << "popping: " << ret << std::endl;
+		log_debug("popping: %d\n", ret);
 		return ret;
 	}
 
 	void drop() {
 		int size = bytes[sp];
-		std::cout << "Dropping size: " << size << std::endl;
 		sp += size + 1;
 	}
 

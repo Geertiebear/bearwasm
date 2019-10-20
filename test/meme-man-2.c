@@ -1,5 +1,5 @@
 void erast_odd();
-const int number = 100;
+const int number = 100000000;
 int i, j;
 int primes[number + 1] = {0};
 

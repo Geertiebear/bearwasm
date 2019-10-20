@@ -68,8 +68,8 @@ bool Interpreter::interpret(InterpreterState &state) {
 		.expression;
 
 	while (pc < expression->size()) {
-		std::cout << "pc " << pc << std::endl;
-		std::cout << "current_function: " << current_function << std::endl;
+		log_debug("pc %d\n", pc);
+		log_debug("current_function: %d\n", current_function);
 		const auto &instruction = (*expression)[pc];
 		switch (instruction.type) {
 			case I_32_CONST: {
@@ -173,7 +173,6 @@ bool Interpreter::interpret(InterpreterState &state) {
 			case I_32_ADD: {
 				auto arg2 = stack.pop<int32_t>();
 				auto arg1 = stack.pop<int32_t>();
-				std::cout << "Adding " << arg2 << " " << arg1 << std::endl;
 				stack.push<int32_t>(arg1 + arg2);
 				break;
 			}
@@ -234,7 +233,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 						i + memarg.offset + 4);
 				if (limit > memory.get_size())
 					panic("Reading too far!");
-				std::cout << "Storing at " << i + memarg.offset << std::endl;
+				log_debug("Storing at: %d\n", i + memarg.offset);
 				memory.store<int32_t>(t, i + memarg.offset);
 				break;
 			}
@@ -245,7 +244,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 						memarg.offset + 4);
 				if (limit > memory.get_size())
 					panic("Reading too far!");
-				std::cout << "reading from " << i + memarg.offset << std::endl;
+				log_debug("reading from %d\n", i + memarg.offset);
 				auto result = memory.load<int32_t>(i + memarg.offset);
 				stack.push<int32_t>(result);
 				break;
@@ -257,7 +256,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 						memarg.offset + 4);
 				if (limit > memory.get_size())
 					panic("Reading too far!");
-				std::cout << "reading from " << i + memarg.offset << std::endl;
+				log_debug("reading from %d\n", i + memarg.offset);
 				auto result = memory.load<uint8_t>(i + memarg.offset);
 				stack.push<int32_t>(result);
 				break;
@@ -269,7 +268,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 						memarg.offset + 4);
 				if (limit > memory.get_size())
 					panic("Reading too far!");
-				std::cout << "reading from " << i + memarg.offset << std::endl;
+				log_debug("reading from %d\n", i + memarg.offset);
 				auto result = memory.load<int8_t>(i + memarg.offset);
 				stack.push<int32_t>(result);
 				break;
@@ -301,7 +300,6 @@ bool Interpreter::interpret(InterpreterState &state) {
 				label.prev = expression;
 				label.pc_cont = pc + 1;
 				label.pc_end = pc + 1;
-				std::cout << "pushing label with end " << label.pc_end << std::endl;
 				state.labelstack.push(label);
 
 				state.pc = 0;
@@ -315,7 +313,6 @@ bool Interpreter::interpret(InterpreterState &state) {
 				label.prev = expression;
 				label.pc_cont = pc;
 				label.pc_end = pc + 1;
-				std::cout << "pushing label with end " << label.pc_end << std::endl;
 				state.labelstack.push(label);
 
 				state.pc = 0;
@@ -329,7 +326,6 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
 				expression = label.prev;
-				std::cout << "breaking to pc " << label.pc_cont << std::endl;
 				state.pc = label.pc_cont;
 				continue;
 			}
@@ -343,7 +339,6 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
 				expression = label.prev;
-				std::cout << "breaking to pc " << label.pc_cont << std::endl;
 				state.pc = label.pc_cont;
 				continue;
 			}
