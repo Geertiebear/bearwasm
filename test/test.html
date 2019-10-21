@@ -2,7 +2,7 @@
 
 <script type="module">
   async function init() {
-	const response = await fetch("./meme-man-1.wasm");
+	const response = await fetch("./meme-man-2-optimized2.wasm");
 	const buffer = await response.arrayBuffer();
 	const obj = await WebAssembly.instantiate(buffer);
 	console.log(obj.instance.exports.main());

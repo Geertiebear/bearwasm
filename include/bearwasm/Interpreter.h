@@ -27,17 +27,6 @@ struct Block {
 	Expression expression;
 };
 
-using InstructionArg = std::variant<
-	uint8_t,
-	uint32_t,
-	uint64_t,
-	int32_t,
-	int64_t,
-	float,
-	double,
-	Block,
-	MemArg>;
-
 struct LocalInstance {
 	Local type;
 	Value value;
@@ -125,7 +114,17 @@ struct InterpreterState {
 
 struct Instruction {
 	Instructions type;
-	InstructionArg arg;
+	union {
+		uint8_t uint8_val;
+		uint32_t uint32_val;
+		uint64_t uint64_val;
+		int32_t int32_val;
+		int64_t int64_val;
+		float float_val;
+		double double_val;
+		Block *block;
+		MemArg memarg;
+	} arg;
 };
 
 class Interpreter {

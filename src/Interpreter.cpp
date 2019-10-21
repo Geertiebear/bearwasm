@@ -59,6 +59,7 @@ static void invoke_function(InterpreterState &state, int idx,
 }
 
 bool Interpreter::interpret(InterpreterState &state) {
+	uint64_t num_instr = 0;
 	auto &current_function = state.current_function;
 	auto &pc = state.pc;
 	auto &functions = state.functions;
@@ -68,33 +69,34 @@ bool Interpreter::interpret(InterpreterState &state) {
 		.expression;
 
 	while (pc < expression->size()) {
+		num_instr++;
 		log_debug("pc %d\n", pc);
 		log_debug("current_function: %d\n", current_function);
 		const auto &instruction = (*expression)[pc];
 		switch (instruction.type) {
 			case I_32_CONST: {
-				stack.push(std::get<int32_t>(instruction.arg));
+				stack.push(instruction.arg.int32_val);
 				break;
 			}
 			case I_64_CONST: {
-				stack.push(std::get<int64_t>(instruction.arg));
+				stack.push(instruction.arg.int64_val);
 				break;
 			}
 				/* TODO: floating point const instructions */
 			case GLOBAL_GET: {
-				auto idx = std::get<uint32_t>(instruction.arg);
+				auto idx = instruction.arg.uint32_val;
 				stack.push(state.globals[idx].value);
 				break;
 			}
 			case GLOBAL_SET: {
-				auto idx = std::get<uint32_t>(instruction.arg);
+				auto idx = instruction.arg.uint32_val;
 				auto type = state.globals[idx].type;
 				state.globals[idx].value = stack.
 					pop_variant(type);
 				break;
 			}
 			case LOCAL_SET: {
-				auto idx = std::get<uint32_t>(instruction.arg);
+				auto idx = instruction.arg.uint32_val;
 				auto type = state.functions[current_function].
 					locals[idx].type;
 				state.functions[current_function].locals[idx].
@@ -102,13 +104,13 @@ bool Interpreter::interpret(InterpreterState &state) {
 				break;
 			}
 			case LOCAL_GET: {
-				auto idx = std::get<uint32_t>(instruction.arg);
+				auto idx = instruction.arg.uint32_val;
 				stack.push(state.functions[current_function].
 						locals[idx].value);
 				break;
 			}
 			case LOCAL_TEE: {
-				auto idx = std::get<uint32_t>(instruction.arg);
+				auto idx = instruction.arg.uint32_val;
 				auto type = state.functions[current_function].
 					locals[idx].type;
 				auto value = stack.pop_variant(type);
@@ -226,7 +228,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				break;
 			}
 			case I_32_STORE: {
-				auto memarg = std::get<MemArg>(instruction.arg);
+				auto memarg = instruction.arg.memarg;
 				auto t = stack.pop<int32_t>();
 				auto i = stack.pop<int32_t>();
 				auto limit = static_cast<int>(
@@ -238,7 +240,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				break;
 			}
 			case I_32_LOAD: {
-				auto memarg = std::get<MemArg>(instruction.arg);
+				auto memarg = instruction.arg.memarg;
 				auto i = stack.pop<int32_t>();
 				auto limit = static_cast<int>(i +
 						memarg.offset + 4);
@@ -250,7 +252,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				break;
 			}
 			case I_32_LOAD_8_U: {
-				auto memarg = std::get<MemArg>(instruction.arg);
+				auto memarg = instruction.arg.memarg;
 				auto i = stack.pop<int32_t>();
 				auto limit = static_cast<int>(i +
 						memarg.offset + 4);
@@ -262,7 +264,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				break;
 			}
 			case I_32_LOAD_8_S: {
-				auto memarg = std::get<MemArg>(instruction.arg);
+				auto memarg = instruction.arg.memarg;
 				auto i = stack.pop<int32_t>();
 				auto limit = static_cast<int>(i +
 						memarg.offset + 4);
@@ -274,7 +276,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				break;
 			}
 			case INSTR_CALL: {
-				auto idx = std::get<uint32_t>(instruction.arg);
+				auto idx = instruction.arg.uint32_val;
 				invoke_function(state, idx, expression);
 				expression = &functions[current_function].expression;
 				continue;
@@ -294,7 +296,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				continue;
 			}
 			case INSTR_BLOCK: {
-				auto &arg = std::get<Block>(instruction.arg);
+				auto arg = instruction.arg.block;
 
 				Label label;
 				label.prev = expression;
@@ -303,11 +305,11 @@ bool Interpreter::interpret(InterpreterState &state) {
 				state.labelstack.push(label);
 
 				state.pc = 0;
-				expression = &arg.expression;
+				expression = &arg->expression;
 				continue;
 			}
 			case INSTR_LOOP: {
-				auto &arg = std::get<Block>(instruction.arg);
+				auto arg = instruction.arg.block;
 
 				Label label;
 				label.prev = expression;
@@ -316,11 +318,11 @@ bool Interpreter::interpret(InterpreterState &state) {
 				state.labelstack.push(label);
 
 				state.pc = 0;
-				expression = &arg.expression;
+				expression = &arg->expression;
 				continue;
 			}
 			case BR: {
-				auto idx = std::get<uint32_t>(instruction.arg);
+				auto idx = instruction.arg.uint32_val;
 				for (unsigned int i = 0; i < idx; i++)
 					state.labelstack.pop();
 				auto &label = state.labelstack.top();
@@ -333,7 +335,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto c = stack.pop<int32_t>();
 				if (!c)
 					break;
-				auto idx = std::get<uint32_t>(instruction.arg);
+				auto idx = instruction.arg.uint32_val;
 				for (unsigned int i = 0; i < idx; i++)
 					state.labelstack.pop();
 				auto &label = state.labelstack.top();
@@ -355,8 +357,10 @@ bool Interpreter::interpret(InterpreterState &state) {
 				break;
 			}
 			case INSTR_END: {
-				if (state.labelstack.empty())
+				if (state.labelstack.empty()) {
+	std::cout << "executed " << num_instr << " instructions" << std::endl;
 					return true;
+				}
 				auto label = state.labelstack.top();
 				state.labelstack.pop();
 				expression = label.prev;
@@ -364,11 +368,13 @@ bool Interpreter::interpret(InterpreterState &state) {
 				continue;
 			}
 			default:
+	std::cout << "executed " << num_instr << " instructions" << std::endl;
 				panic("Unknown instruction encountered " +
 						std::to_string((*expression)[pc].type));
 		};
 		pc++;
 	}
+	std::cout << "executed " << num_instr << " instructions" << std::endl;
 	return true;
 }
 
@@ -443,15 +449,16 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 
 		switch (arg_size->second) {
 			case SIZE_BLOCK: {
-				Block block;
+				/* TODO: free this somewhere */
+				auto *block = new Block;
 				auto type = stream_read<BinaryType>(stream);
 				if (!type)
 					panic("Unable to read block type");
-				block.type = *type;
+				block->type = *type;
 
 				auto instructions = decode_code(stream);
-				block.expression = instructions;
-				inst.arg = block;
+				block->expression = instructions;
+				inst.arg.block = block;
 				inst.type = *instruction;
 				break;
 			} 
@@ -459,7 +466,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				auto value = stream_read<uint8_t>(stream);
 				if (!value)
 					panic("Unable to read value");
-				inst.arg = *value;
+				inst.arg.uint8_val = *value;
 				inst.type = *instruction;
 				break;
 			}
@@ -467,7 +474,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				auto value = decode_varint_s<int32_t>(stream);
 				if (!value)
 					panic("Unable to read value");
-				inst.arg = *value;
+				inst.arg.int32_val = *value;
 				inst.type = *instruction;
 				break;
 			}
@@ -475,7 +482,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				auto value = decode_varint_s<int64_t>(stream);
 				if (!value)
 					panic("Unable to read value");
-				inst.arg = *value;
+				inst.arg.int64_val = *value;
 				inst.type = *instruction;
 				break;
 			}
@@ -483,7 +490,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				auto value = decode_varuint_s<uint32_t>(stream);
 				if (!value)
 					panic("Unable to read value");
-				inst.arg = *value;
+				inst.arg.uint32_val = *value;
 				inst.type = *instruction;
 				break;
 			}
@@ -491,7 +498,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				auto value = decode_varuint_s<uint64_t>(stream);
 				if (!value)
 					panic("Unable to read value");
-				inst.arg = *value;
+				inst.arg.uint64_val = *value;
 				inst.type = *instruction;
 				break;
 			}
@@ -508,7 +515,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				arg.align = *align;
 				arg.offset = *offset;
 
-				inst.arg = arg;
+				inst.arg.memarg = arg;
 				inst.type = *instruction;
 				break;
 			}
