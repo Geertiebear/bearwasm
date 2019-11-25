@@ -8,7 +8,7 @@
 
 namespace bearwasm {
 
-class Instruction;
+struct Instruction;
 
 using Expression = std::vector<Instruction>;
 using MemoryType = Limit;

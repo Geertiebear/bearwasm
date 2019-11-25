@@ -299,27 +299,15 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto arg = instruction.arg.block;
 
 				Label label;
-				label.prev = expression;
-				label.pc_cont = pc + 1;
-				label.pc_end = pc + 1;
+				label.pc_cont = pc + arg.size + 1;
 				state.labelstack.push(label);
-
-				state.pc = 0;
-				expression = &arg->expression;
-				continue;
+				break;
 			}
 			case INSTR_LOOP: {
-				auto arg = instruction.arg.block;
-
 				Label label;
-				label.prev = expression;
 				label.pc_cont = pc;
-				label.pc_end = pc + 1;
 				state.labelstack.push(label);
-
-				state.pc = 0;
-				expression = &arg->expression;
-				continue;
+				break;
 			}
 			case BR: {
 				auto idx = instruction.arg.uint32_val;
@@ -327,7 +315,6 @@ bool Interpreter::interpret(InterpreterState &state) {
 					state.labelstack.pop();
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
-				expression = label.prev;
 				state.pc = label.pc_cont;
 				continue;
 			}
@@ -340,7 +327,6 @@ bool Interpreter::interpret(InterpreterState &state) {
 					state.labelstack.pop();
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
-				expression = label.prev;
 				state.pc = label.pc_cont;
 				continue;
 			}
@@ -361,11 +347,8 @@ bool Interpreter::interpret(InterpreterState &state) {
 	std::cout << "executed " << num_instr << " instructions" << std::endl;
 					return true;
 				}
-				auto label = state.labelstack.top();
 				state.labelstack.pop();
-				expression = label.prev;
-				state.pc = label.pc_end;
-				continue;
+				break;
 			}
 			default:
 	std::cout << "executed " << num_instr << " instructions" << std::endl;
@@ -450,17 +433,21 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 		switch (arg_size->second) {
 			case SIZE_BLOCK: {
 				/* TODO: free this somewhere */
-				auto *block = new Block;
+				Block block;
 				auto type = stream_read<BinaryType>(stream);
 				if (!type)
 					panic("Unable to read block type");
-				block->type = *type;
+				block.type = *type;
 
 				auto instructions = decode_code(stream);
-				block->expression = instructions;
+				block.size = instructions.size();
 				inst.arg.block = block;
 				inst.type = *instruction;
-				break;
+				ret.push_back(inst);
+				std::copy(instructions.begin(), instructions.end(),
+						std::back_inserter(ret));
+				instruction = stream_read<Instructions>(stream);
+				continue;
 			} 
 			case SIZE_U8: {
 				auto value = stream_read<uint8_t>(stream);

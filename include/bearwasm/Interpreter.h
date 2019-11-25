@@ -20,11 +20,9 @@ struct MemArg {
 	uint32_t align, offset;
 };
 
-/* TODO: change expression to a pointer somehow
- * to avoid copies when loading the module */
 struct Block {
+	unsigned int size;
 	BinaryType type;
-	Expression expression;
 };
 
 struct LocalInstance {
@@ -93,7 +91,6 @@ struct Frame {
 };
 
 struct Label {
-	const Expression *prev;
 	int pc_cont, pc_end;
 };
 
@@ -112,8 +109,28 @@ struct InterpreterState {
 	size_t pc;
 };
 
+struct ASMInterpreterState {
+	char *stack;
+	uint32_t pc;
+
+	int32_t expression_no;
+	uint8_t **expressions;
+	uint64_t **locals;
+
+	char **memories;
+	int *memory_sizes;
+
+	uint64_t *globals;
+	uint8_t *expression_arg_no;
+};
+
 struct Instruction {
-	Instructions type;
+	/* instructions are only a byte but
+	 * this would make the struct unaligned
+	 * since the size of the union is 8 bytes
+	 * so we make the struct 16 bytes long
+	 * to keep it aligned */
+	uint64_t type;
 	union {
 		uint8_t uint8_val;
 		uint32_t uint32_val;
@@ -122,7 +139,7 @@ struct Instruction {
 		int64_t int64_val;
 		float float_val;
 		double double_val;
-		Block *block;
+		Block block;
 		MemArg memarg;
 	} arg;
 };

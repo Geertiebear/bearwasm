@@ -13,7 +13,7 @@
 
 namespace bearwasm {
 
-#ifdef BEARWASM_DEBUG
+#ifndef BEARWASM_DEBUG
 static inline void log_debug(const char *msg, ...) {
 	va_list va;
 	va_start(va, msg);
