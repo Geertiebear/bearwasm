@@ -29,11 +29,13 @@ int VirtualMachine::execute(int argc, char **argv) {
 		panic("Could not find main function!");
 
 	//argc
-	state.functions[state.current_function].locals[0].value =
+	state.functions[state.current_function].locals[0].value.int32_val =
 		static_cast<int32_t>(argc);
+	state.functions[state.current_function].locals[0].type = I_32;
 	//argv
-	state.functions[state.current_function].locals[1].value =
+	state.functions[state.current_function].locals[1].value.int32_val =
 		static_cast<int32_t>(1);
+	state.functions[state.current_function].locals[1].type = I_32;
 
 	int offset = 0;
 	for (int i = 0; i < argc; i++) {
@@ -116,13 +118,13 @@ void VirtualMachine::build_function_instances() {
 		for (const auto param : instance.signature.parameters) {
 			LocalInstance local_instance;
 			local_instance.type = param;
-			local_instance.value = 0;
+			local_instance.value.int32_val = 0;
 			instance.locals.push_back(local_instance);
 		}
 		for (auto &local : module.function_code[i].locals) {
 			LocalInstance local_instance;
 			local_instance.type = local;
-			local_instance.value = 0;
+			local_instance.value.int32_val = 0;
 			instance.locals.push_back(local_instance);
 		}
 		state.functions.push_back(instance);

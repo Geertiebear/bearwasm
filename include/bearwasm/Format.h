@@ -2,7 +2,6 @@
 #define BEARWASM_FORMAT_H
 
 #include <vector>
-#include <variant>
 #include <bearwasm/BinaryFormat.h>
 #include <bearwasm/Util.h>
 
@@ -12,7 +11,12 @@ struct Instruction;
 
 using Expression = std::vector<Instruction>;
 using MemoryType = Limit;
-using Value = std::variant<int32_t, int64_t, float, double>;
+using Value = union {
+		int32_t int32_val; 
+		int64_t int64_val;
+		float float_val; 
+		double double_val;
+	};
 using Local = BinaryType;
 
 struct FunctionType {

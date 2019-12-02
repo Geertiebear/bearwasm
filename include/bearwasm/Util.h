@@ -8,12 +8,11 @@
 #include <iostream>
 #include <string>
 #include <utility>
-#include <variant>
 #include <cstdio>
 
 namespace bearwasm {
 
-#ifndef BEARWASM_DEBUG
+#ifdef BEARWASM_DEBUG
 static inline void log_debug(const char *msg, ...) {
 	va_list va;
 	va_start(va, msg);

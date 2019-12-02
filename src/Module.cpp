@@ -353,8 +353,6 @@ void Module::dump_globals() {
 	int i = 0;
 	for (auto &global : globals) {
 		std::cout << "\t[" << i << "] value: ";
-		std::visit([](auto &&arg) { std::cout << arg; },
-				global.value);
 		std::cout << " mut: " << global.mut << std::endl;
 		i++;
 	}

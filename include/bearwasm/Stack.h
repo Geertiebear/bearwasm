@@ -35,6 +35,25 @@ public:
 		bytes[sp - sizeof(T)] = static_cast<uint8_t>(sizeof(T));
 		sp -= sizeof(T) + 1;
 	}
+
+	void push_val(Value value, BinaryType type) {
+		switch (type) {
+			case I_32:
+				push(value.int32_val);
+				break;
+			case I_64:
+				push(value.int64_val);
+				break;
+			case F_32:
+				push(value.float_val);
+				break;
+			case F_64:
+				push(value.double_val);
+				break;
+			default:
+				return;
+		}
+	}
 	
 	template<typename T>
 	T pop() {
@@ -57,18 +76,24 @@ public:
 	}
 
 	Value pop_variant(BinaryType type) {
+		Value val;
 		switch (type) {
 			case I_32:
-				return pop<int32_t>();
+				val.int32_val = pop<int32_t>();
+				break;
 			case I_64:
-				return pop<int64_t>();
+				val.int64_val = pop<int64_t>();
+				break;
 			case F_32:
-				return pop<float>();
+				val.float_val =  pop<float>();
+				break;
 			case F_64:
-				return pop<double>();
+				val.double_val = pop<double>();
+				break;
 			default:
-				return 0;
+				return val;
 		}
+		return val;
 	}
 
 	int get_sp() const {
@@ -84,12 +109,6 @@ private:
 };
 
 
-template<>
-inline void Stack::push<Value>(Value value) {
-	std::visit([this] (auto&& arg) {
-		push<decltype(arg)>(arg);
-	}, value);
-}
 
 } /* namespace bearwasm */
 #endif

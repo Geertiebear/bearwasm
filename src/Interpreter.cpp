@@ -7,29 +7,30 @@ static void pop_args(InterpreterState &state, int idx) {
 	const auto &params = next.signature.parameters;
 	for (size_t i = params.size(); i > 0; i--) {
 		const auto param = params[i - 1];
+			next.locals[i - 1].type = param;
 		switch (param) {
 			case I_32: {
 				auto value = state.stack.pop<
 					int32_t>();
-				next.locals[i - 1].value = value;
+				next.locals[i - 1].value.int32_val = value;
 				break;
 			}
 			case I_64: {
 				auto value = state.stack.pop<
 					int64_t>();
-				next.locals[i - 1].value = value;
+				next.locals[i - 1].value.int64_val = value;
 				break;
 			}
 			case F_32: {
 				auto value = state.stack.pop<
 					float>();
-				next.locals[i - 1].value = value;
+				next.locals[i - 1].value.float_val = value;
 				break;
 			}
 			case F_64: {
 				auto value = state.stack.pop<
 					double>();
-				next.locals[i - 1].value = value;
+				next.locals[i - 1].value.double_val = value;
 				break;
 			}
 			default:
@@ -55,13 +56,13 @@ static void invoke_function(InterpreterState &state, int idx,
 		parameters.size();
 	const auto num_locals = state.functions[idx].locals.size();
 	for (auto i = num_params; i < num_locals; i++)
-		state.functions[idx].locals[i].value = 0;
+		state.functions[idx].locals[i].value.int32_val = 0;
 }
 
 bool Interpreter::interpret(InterpreterState &state) {
 	uint64_t num_instr = 0;
 	auto &current_function = state.current_function;
-	auto &pc = state.pc;
+	auto pc = state.pc;
 	auto &functions = state.functions;
 	auto &stack = state.stack;
 	auto &memory = state.memory[0];
@@ -85,7 +86,8 @@ bool Interpreter::interpret(InterpreterState &state) {
 				/* TODO: floating point const instructions */
 			case GLOBAL_GET: {
 				auto idx = instruction.arg.uint32_val;
-				stack.push(state.globals[idx].value);
+				stack.push_val(state.globals[idx].value,
+						state.globals[idx].type);
 				break;
 			}
 			case GLOBAL_SET: {
@@ -105,8 +107,9 @@ bool Interpreter::interpret(InterpreterState &state) {
 			}
 			case LOCAL_GET: {
 				auto idx = instruction.arg.uint32_val;
-				stack.push(state.functions[current_function].
-						locals[idx].value);
+				auto local = state.functions[current_function].
+					locals[idx];
+				stack.push_val(local.value, local.type);
 				break;
 			}
 			case LOCAL_TEE: {
@@ -114,7 +117,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto type = state.functions[current_function].
 					locals[idx].type;
 				auto value = stack.pop_variant(type);
-				stack.push(value);
+				stack.push_val(value, type);
 				state.functions[current_function].locals[idx].
 					value = value;
 				break;
@@ -277,7 +280,9 @@ bool Interpreter::interpret(InterpreterState &state) {
 			}
 			case INSTR_CALL: {
 				auto idx = instruction.arg.uint32_val;
+				state.pc = pc;
 				invoke_function(state, idx, expression);
+				pc = state.pc;
 				expression = &functions[current_function].expression;
 				continue;
 			}
@@ -285,7 +290,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 				auto frame = state.callstack.top();
 				state.callstack.pop();
 				if (frame.pc == PC_END) return true;
-				state.pc = frame.pc;
+				pc = frame.pc;
 				state.current_function = frame.prev;
 				expression = frame.prev_expr;
 
@@ -315,7 +320,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 					state.labelstack.pop();
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
-				state.pc = label.pc_cont;
+				pc = label.pc_cont;
 				continue;
 			}
 			case BR_IF: {
@@ -327,7 +332,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 					state.labelstack.pop();
 				auto &label = state.labelstack.top();
 				state.labelstack.pop();
-				state.pc = label.pc_cont;
+				pc = label.pc_cont;
 				continue;
 			}
 			case INSTR_DROP: {
@@ -381,16 +386,16 @@ std::optional<GlobalValue> Interpreter::interpret_global(
 		case EMPTY:
 			break;
 		case I_32:
-		       ret.value = state.stack.pop<int32_t>();
+		       ret.value.int32_val = state.stack.pop<int32_t>();
 		       break;
 		case I_64:
-		       ret.value = state.stack.pop<int64_t>();
+		       ret.value.int64_val = state.stack.pop<int64_t>();
 		       break;
 		case F_32:
-		       ret.value = state.stack.pop<float>();
+		       ret.value.float_val = state.stack.pop<float>();
 		       break;
 		case F_64:
-		       ret.value = state.stack.pop<double>();
+		       ret.value.float_val = state.stack.pop<double>();
 		       break;
 	}
 	return ret;

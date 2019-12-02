@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
 	}
 
 	bearwasm::VirtualMachine vm{std::string(argv[1])};
-	auto res = vm.execute_asm(argc - 2, argv + 2);
+	auto res = vm.execute(argc - 2, argv + 2);
 	std::cout << "Program exit code: " << res << std::endl;
 	return 0;
 }
