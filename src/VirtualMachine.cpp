@@ -11,7 +11,7 @@ VirtualMachine::VirtualMachine(const std::string &path) :
 	build_function_instances();
 	build_memory_instances();
 	state.globals = module.globals;
-	
+
 	Frame frame;
 	frame.pc = PC_END;
 	frame.prev = 0;
@@ -78,7 +78,7 @@ int VirtualMachine::execute_asm(int argc, char **argv) {
 	}
 
 	//argv
-	asm_state->locals[asm_state->expression_no][0] = 
+	asm_state->locals[asm_state->expression_no][0] =
 		static_cast<uint64_t>(argc);
 	//argc
 	asm_state->locals[asm_state->expression_no][1] = 1;
@@ -96,14 +96,15 @@ int VirtualMachine::execute_asm(int argc, char **argv) {
 		auto length = strlen(arg);
 		std::cout << length << std::endl;
 		auto location = (5 + (argc * 4)  + offset);
-		memcpy((asm_state->memories[0] + 5 + (i * 4)), 
+		memcpy((asm_state->memories[0] + 5 + (i * 4)),
 				reinterpret_cast<char*>(&location), 4);
 		memcpy(location + asm_state->memories[0], arg, length);
 		offset += length;
 	}
 
 	asm_state->globals = new uint64_t[state.globals.size()];
-	return vm_enter(asm_state);
+	//return vm_enter(asm_state);
+        return 1;
 }
 
 void VirtualMachine::build_function_instances() {

@@ -314,6 +314,21 @@ bool Interpreter::interpret(InterpreterState &state) {
 				state.labelstack.push(label);
 				break;
 			}
+                        case INSTR_IF: {
+                                auto c = stack.pop<int32_t>();
+                                auto arg = instruction.arg.block;
+
+                                Label label;
+                                label.pc_cont = pc + arg.size + 1;
+                                state.labelstack.push(label);
+                                if (c) {
+                                        break;
+                                } else {
+                                        /* TODO: properly handle else clause */
+                                        pc = label.pc_cont;
+                                        break;
+                                }
+                        }
 			case BR: {
 				auto idx = instruction.arg.uint32_val;
 				for (unsigned int i = 0; i < idx; i++)
@@ -432,7 +447,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 
 		auto arg_size = instruction_sizes.find(*instruction);
 		if (arg_size == instruction_sizes.end())
-			panic("Don't know size of instruction " + 
+			panic("Don't know size of instruction " +
 				std::to_string(*instruction));
 
 		switch (arg_size->second) {
@@ -453,7 +468,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 						std::back_inserter(ret));
 				instruction = stream_read<Instructions>(stream);
 				continue;
-			} 
+			}
 			case SIZE_U8: {
 				auto value = stream_read<uint8_t>(stream);
 				if (!value)
