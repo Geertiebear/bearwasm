@@ -44,7 +44,7 @@ static void invoke_function(InterpreterState &state, int idx,
 	pop_args(state, idx);
 
 	Frame frame;
-	frame.pc = state.pc + 1;
+	frame.pc = state.pc;
 	frame.prev = state.current_function;
 	frame.prev_expr = expression;
 	frame.labelstack_size = state.labelstack.size();
@@ -69,313 +69,359 @@ bool Interpreter::interpret(InterpreterState &state) {
 	const Expression *expression = &functions[current_function]
 		.expression;
 
+	constexpr void *dispatch_table[] = {
+		[0 ... 255] = &&instr_unknown,
+		[I_32_CONST] = &&i_32_const,
+		[I_64_CONST] = &&i_64_const,
+		[GLOBAL_GET] = &&global_get,
+		[GLOBAL_SET] = &&global_set,
+		[LOCAL_SET] = &&local_set,
+		[LOCAL_GET] = &&local_get,
+		[LOCAL_TEE] = &&local_tee,
+		[I_32_EQZ] = &&i_32_eqz,
+		[I_32_EQ] = &&i_32_eq,
+		[I_32_NE] = &&i_32_ne,
+		[I_32_LT_S] = &&i_32_lt_s,
+		[I_32_LT_U] = &&i_32_lt_u,
+		[I_32_GT_S] = &&i_32_gt_s,
+		[I_32_GT_U] = &&i_32_gt_u,
+		[I_32_LE_S] = &&i_32_le_s,
+		[I_32_LE_U] = &&i_32_le_u,
+		[I_32_ADD] = &&i_32_add,
+		[I_32_SUB] = &&i_32_sub,
+		[I_32_MUL] = &&i_32_mul,
+		[I_32_AND] = &&i_32_and,
+		[I_32_OR] = &&i_32_or,
+		[I_32_SHL] = &&i_32_shl,
+		[I_32_SHR_S] = &&i_32_shr_s,
+		[I_32_DIV_S] = &&i_32_div_s,
+		[I_32_REM_S] = &&i_32_rem_s,
+		[I_32_STORE] = &&i_32_store,
+		[I_32_LOAD] = &&i_32_load,
+		[I_32_LOAD_8_U] = &&i_32_load_8_u,
+		[I_32_LOAD_8_S] = &&i_32_load_8_s,
+		[INSTR_CALL] = &&instr_call,
+		[INSTR_RETURN] = &&instr_return,
+		[INSTR_BLOCK] = &&instr_block,
+		[INSTR_LOOP] = &&instr_loop,
+		[INSTR_IF] = &&instr_if,
+		[BR] = &&br,
+		[BR_IF] = &&br_if,
+		[INSTR_DROP] = &&instr_drop,
+		[INSTR_SELECT] = &&instr_select,
+		[INSTR_END] = &&instr_end,
+	};
+#define DISPATCH() log_debug("pc %d\n", pc); \
+	instruction = (*expression)[pc++]; \
+	num_instr++; \
+	goto *dispatch_table[instruction.type];
+
 	while (pc < expression->size()) {
 		num_instr++;
-		log_debug("pc %d\n", pc);
-		log_debug("current_function: %d\n", current_function);
-		const auto &instruction = (*expression)[pc];
-		switch (instruction.type) {
-			case I_32_CONST: {
-				stack.push(instruction.arg.int32_val);
-				break;
-			}
-			case I_64_CONST: {
-				stack.push(instruction.arg.int64_val);
-				break;
-			}
-				/* TODO: floating point const instructions */
-			case GLOBAL_GET: {
-				auto idx = instruction.arg.uint32_val;
-				stack.push_val(state.globals[idx].value,
-						state.globals[idx].type);
-				break;
-			}
-			case GLOBAL_SET: {
-				auto idx = instruction.arg.uint32_val;
-				auto type = state.globals[idx].type;
-				state.globals[idx].value = stack.
-					pop_variant(type);
-				break;
-			}
-			case LOCAL_SET: {
-				auto idx = instruction.arg.uint32_val;
-				auto type = state.functions[current_function].
-					locals[idx].type;
-				state.functions[current_function].locals[idx].
-					value = stack.pop_variant(type);
-				break;
-			}
-			case LOCAL_GET: {
-				auto idx = instruction.arg.uint32_val;
-				auto local = state.functions[current_function].
-					locals[idx];
-				stack.push_val(local.value, local.type);
-				break;
-			}
-			case LOCAL_TEE: {
-				auto idx = instruction.arg.uint32_val;
-				auto type = state.functions[current_function].
-					locals[idx].type;
-				auto value = stack.pop_variant(type);
-				stack.push_val(value, type);
-				state.functions[current_function].locals[idx].
-					value = value;
-				break;
-			}
-			case I_32_EQZ: {
-				auto arg = stack.pop<int32_t>();
-				stack.push<int32_t>(arg == 0);
-				break;
-			}
-			case I_32_EQ: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 == arg2);
-				break;
-			}
-			case I_32_NE: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 != arg2);
-				break;
-			}
-			case I_32_LT_S: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 < arg2);
-				break;
-			}
-			case I_32_LT_U: {
-				auto arg2 = stack.pop<uint32_t>();
-				auto arg1 = stack.pop<uint32_t>();
-				stack.push<int32_t>(arg1 < arg2);
-				break;
-			}
-			case I_32_GT_S: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 > arg2);
-				break;
-			}
-			case I_32_GT_U: {
-				auto arg2 = stack.pop<uint32_t>();
-				auto arg1 = stack.pop<uint32_t>();
-				stack.push<int32_t>(arg1 > arg2);
-				break;
-			}
-			case I_32_LE_S: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 <= arg2);
-				break;
-			}
-			case I_32_LE_U: {
-				auto arg2 = stack.pop<uint32_t>();
-				auto arg1 = stack.pop<uint32_t>();
-				stack.push<int32_t>(arg1 <= arg2);
-				break;
-			}
-			case I_32_ADD: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 + arg2);
-				break;
-			}
-			case I_32_SUB: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				//TODO: spec says to mod 2^32
-				stack.push<int32_t>((arg1 - arg2));
-				break;
-			}
-			case I_32_MUL: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 * arg2);
-				break;
-			}
-			case I_32_AND: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 & arg2);
-				break;
-			}
-			case I_32_OR: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 | arg2);
-				break;
-			}
-			case I_32_SHL: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 << arg2);
-				break;
-			}
-			case I_32_SHR_S: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 >> arg2);
-				break;
-			}
-			case I_32_DIV_S: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 / arg2);
-				break;
-			}
-			case I_32_REM_S: {
-				auto arg2 = stack.pop<int32_t>();
-				auto arg1 = stack.pop<int32_t>();
-				stack.push<int32_t>(arg1 % arg2);
-				break;
-			}
-			case I_32_STORE: {
-				auto memarg = instruction.arg.memarg;
-				auto t = stack.pop<int32_t>();
-				auto i = stack.pop<int32_t>();
-				auto limit = static_cast<int>(
-						i + memarg.offset + 4);
-				if (limit > memory.get_size())
-					panic("Reading too far!");
-				log_debug("Storing at: %d\n", i + memarg.offset);
-				memory.store<int32_t>(t, i + memarg.offset);
-				break;
-			}
-			case I_32_LOAD: {
-				auto memarg = instruction.arg.memarg;
-				auto i = stack.pop<int32_t>();
-				auto limit = static_cast<int>(i +
-						memarg.offset + 4);
-				if (limit > memory.get_size())
-					panic("Reading too far!");
-				log_debug("reading from %d\n", i + memarg.offset);
-				auto result = memory.load<int32_t>(i + memarg.offset);
-				stack.push<int32_t>(result);
-				break;
-			}
-			case I_32_LOAD_8_U: {
-				auto memarg = instruction.arg.memarg;
-				auto i = stack.pop<int32_t>();
-				auto limit = static_cast<int>(i +
-						memarg.offset + 4);
-				if (limit > memory.get_size())
-					panic("Reading too far!");
-				log_debug("reading from %d\n", i + memarg.offset);
-				auto result = memory.load<uint8_t>(i + memarg.offset);
-				stack.push<int32_t>(result);
-				break;
-			}
-			case I_32_LOAD_8_S: {
-				auto memarg = instruction.arg.memarg;
-				auto i = stack.pop<int32_t>();
-				auto limit = static_cast<int>(i +
-						memarg.offset + 4);
-				if (limit > memory.get_size())
-					panic("Reading too far!");
-				log_debug("reading from %d\n", i + memarg.offset);
-				auto result = memory.load<int8_t>(i + memarg.offset);
-				stack.push<int32_t>(result);
-				break;
-			}
-			case INSTR_CALL: {
-				auto idx = instruction.arg.uint32_val;
-				state.pc = pc;
-				invoke_function(state, idx, expression);
-				pc = state.pc;
-				expression = &functions[current_function].expression;
-				continue;
-			}
-			case INSTR_RETURN: {
-				auto frame = state.callstack.top();
-				state.callstack.pop();
-				if (frame.pc == PC_END) return true;
-				pc = frame.pc;
-				state.current_function = frame.prev;
-				expression = frame.prev_expr;
+		Instruction instruction;
+		DISPATCH();
+		i_32_const: {
+			stack.push(instruction.arg.int32_val);
+			DISPATCH();
+		}
+		i_64_const: {
+			stack.push(instruction.arg.int64_val);
+			DISPATCH();
+		}
+		/* TODO: floating point const instructions */
+		global_get: {
+			auto idx = instruction.arg.uint32_val;
+			stack.push_val(state.globals[idx].value,
+					state.globals[idx].type);
+			DISPATCH();
+		}
+		global_set: {
+			auto idx = instruction.arg.uint32_val;
+			auto type = state.globals[idx].type;
+			state.globals[idx].value = stack.
+				pop_variant(type);
+			DISPATCH();
+		}
+		local_set: {
+			auto idx = instruction.arg.uint32_val;
+			auto type = state.functions[current_function].
+				locals[idx].type;
+			state.functions[current_function].locals[idx].
+				value = stack.pop_variant(type);
+			DISPATCH();
+		}
+		local_get: {
+			auto idx = instruction.arg.uint32_val;
+			auto local = state.functions[current_function].
+				locals[idx];
+			stack.push_val(local.value, local.type);
+			DISPATCH();
+		}
+		local_tee: {
+			auto idx = instruction.arg.uint32_val;
+			auto type = state.functions[current_function].
+				locals[idx].type;
+			auto value = stack.pop_variant(type);
+			stack.push_val(value, type);
+			state.functions[current_function].locals[idx].
+				value = value;
+			DISPATCH();
+		}
+		i_32_eqz: {
+			auto arg = stack.pop<int32_t>();
+			stack.push<int32_t>(arg == 0);
+			DISPATCH();
+		}
+		i_32_eq: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 == arg2);
+			DISPATCH();
+		}
+		i_32_ne: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 != arg2);
+			DISPATCH();
+		}
+		i_32_lt_s: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 < arg2);
+			DISPATCH();
+		}
+		i_32_lt_u: {
+			auto arg2 = stack.pop<uint32_t>();
+			auto arg1 = stack.pop<uint32_t>();
+			stack.push<int32_t>(arg1 < arg2);
+			DISPATCH();
+		}
+		i_32_gt_s: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 > arg2);
+			DISPATCH();
+		}
+		i_32_gt_u: {
+			auto arg2 = stack.pop<uint32_t>();
+			auto arg1 = stack.pop<uint32_t>();
+			stack.push<int32_t>(arg1 > arg2);
+			DISPATCH();
+		}
+		i_32_le_s: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 <= arg2);
+			DISPATCH();
+		}
+		i_32_le_u: {
+			auto arg2 = stack.pop<uint32_t>();
+			auto arg1 = stack.pop<uint32_t>();
+			stack.push<int32_t>(arg1 <= arg2);
+			DISPATCH();
+		}
+		i_32_add: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 + arg2);
+			DISPATCH();
+		}
+		i_32_sub: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			//TODO: spec says to mod 2^32
+			stack.push<int32_t>((arg1 - arg2));
+			DISPATCH();
+		}
+		i_32_mul: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 * arg2);
+			DISPATCH();
+		}
+		i_32_and: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 & arg2);
+			DISPATCH();
+		}
+		i_32_or: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 | arg2);
+			DISPATCH();
+		}
+		i_32_shl: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 << arg2);
+			DISPATCH();
+		}
+		i_32_shr_s: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 >> arg2);
+			DISPATCH();
+		}
+		i_32_div_s: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 / arg2);
+			DISPATCH();
+		}
+		i_32_rem_s: {
+			auto arg2 = stack.pop<int32_t>();
+			auto arg1 = stack.pop<int32_t>();
+			stack.push<int32_t>(arg1 % arg2);
+			DISPATCH();
+		}
+		i_32_store: {
+			auto memarg = instruction.arg.memarg;
+			auto t = stack.pop<int32_t>();
+			auto i = stack.pop<int32_t>();
+			auto limit = static_cast<int>(
+					i + memarg.offset + 4);
+			if (limit > memory.get_size())
+				panic("Reading too far!");
+			log_debug("Storing at: %d\n", i + memarg.offset);
+			memory.store<int32_t>(t, i + memarg.offset);
+			DISPATCH();
+		}
+		i_32_load: {
+			auto memarg = instruction.arg.memarg;
+			auto i = stack.pop<int32_t>();
+			auto limit = static_cast<int>(i +
+					memarg.offset + 4);
+			if (limit > memory.get_size())
+				panic("Reading too far!");
+			log_debug("reading from %d\n", i + memarg.offset);
+			auto result = memory.load<int32_t>(i + memarg.offset);
+			stack.push<int32_t>(result);
+			DISPATCH();
+		}
+		i_32_load_8_u: {
+			auto memarg = instruction.arg.memarg;
+			auto i = stack.pop<int32_t>();
+			auto limit = static_cast<int>(i +
+					memarg.offset + 4);
+			if (limit > memory.get_size())
+				panic("Reading too far!");
+			log_debug("reading from %d\n", i + memarg.offset);
+			auto result = memory.load<uint8_t>(i + memarg.offset);
+			stack.push<int32_t>(result);
+			DISPATCH();
+		}
+		i_32_load_8_s: {
+			auto memarg = instruction.arg.memarg;
+			auto i = stack.pop<int32_t>();
+			auto limit = static_cast<int>(i +
+					memarg.offset + 4);
+			if (limit > memory.get_size())
+				panic("Reading too far!");
+			log_debug("reading from %d\n", i + memarg.offset);
+			auto result = memory.load<int8_t>(i + memarg.offset);
+			stack.push<int32_t>(result);
+			DISPATCH();
+		}
+		instr_call: {
+			auto idx = instruction.arg.uint32_val;
+			state.pc = pc;
+			invoke_function(state, idx, expression);
+			pc = state.pc;
+			expression = &functions[current_function].expression;
+			DISPATCH();
+		}
+		instr_return: {
+			auto frame = state.callstack.top();
+			state.callstack.pop();
+			if (frame.pc == PC_END) return true;
+			pc = frame.pc;
+			state.current_function = frame.prev;
+			expression = frame.prev_expr;
 
-				//restore labelstack
-				const auto size = state.labelstack.size();
-				for (size_t i = frame.labelstack_size; i < size; i++)
-					state.labelstack.pop();
-				continue;
-			}
-			case INSTR_BLOCK: {
-				auto arg = instruction.arg.block;
-
-				Label label;
-				label.pc_cont = pc + arg.size + 1;
-				state.labelstack.push(label);
-				break;
-			}
-			case INSTR_LOOP: {
-				Label label;
-				label.pc_cont = pc;
-				state.labelstack.push(label);
-				break;
-			}
-                        case INSTR_IF: {
-                                auto c = stack.pop<int32_t>();
-                                auto arg = instruction.arg.block;
-
-                                Label label;
-                                label.pc_cont = pc + arg.size + 1;
-                                state.labelstack.push(label);
-                                if (c) {
-                                        break;
-                                } else {
-                                        /* TODO: properly handle else clause */
-                                        pc = label.pc_cont;
-                                        break;
-                                }
-                        }
-			case BR: {
-				auto idx = instruction.arg.uint32_val;
-				for (unsigned int i = 0; i < idx; i++)
-					state.labelstack.pop();
-				auto &label = state.labelstack.top();
+			//restore labelstack
+			const auto size = state.labelstack.size();
+			for (size_t i = frame.labelstack_size; i < size; i++)
 				state.labelstack.pop();
-				pc = label.pc_cont;
-				continue;
-			}
-			case BR_IF: {
-				auto c = stack.pop<int32_t>();
-				if (!c)
-					break;
-				auto idx = instruction.arg.uint32_val;
-				for (unsigned int i = 0; i < idx; i++)
-					state.labelstack.pop();
-				auto &label = state.labelstack.top();
+			DISPATCH();
+		}
+		instr_block: {
+			auto arg = instruction.arg.block;
+
+			Label label;
+			label.pc_cont = pc + arg.size;
+			state.labelstack.push(label);
+			DISPATCH();
+		}
+		instr_loop: {
+			Label label;
+			label.pc_cont = pc - 1;
+			state.labelstack.push(label);
+			DISPATCH();
+		}
+                instr_if: {
+                         auto c = stack.pop<int32_t>();
+                         auto arg = instruction.arg.block;
+
+                         Label label;
+                         label.pc_cont = pc + arg.size;
+                         state.labelstack.push(label);
+                         if (c) {
+                                 DISPATCH();
+                         } else {
+                                 /* TODO: properly handle else clause */
+                                 pc = label.pc_cont;
+				 state.labelstack.pop();
+                                 DISPATCH();
+                         }
+                }
+		br: {
+			auto idx = instruction.arg.uint32_val;
+			for (unsigned int i = 0; i < idx; i++)
 				state.labelstack.pop();
-				pc = label.pc_cont;
-				continue;
+			auto &label = state.labelstack.top();
+			state.labelstack.pop();
+			pc = label.pc_cont;
+			DISPATCH();
+		}
+		br_if: {
+			auto c = stack.pop<int32_t>();
+			if (!c) {
+				DISPATCH();
 			}
-			case INSTR_DROP: {
-				stack.drop();
-				break;
-			}
-			case INSTR_SELECT: {
-				auto c = stack.pop<int32_t>();
-				auto val2 = stack.pop<int32_t>();
-				auto val1 = stack.pop<int32_t>();
-				if (c) stack.push<int32_t>(val1);
-				else stack.push<int32_t>(val2);
-				break;
-			}
-			case INSTR_END: {
-				if (state.labelstack.empty()) {
+			auto idx = instruction.arg.uint32_val;
+			for (unsigned int i = 0; i < idx; i++)
+				state.labelstack.pop();
+			auto &label = state.labelstack.top();
+			state.labelstack.pop();
+			pc = label.pc_cont;
+			DISPATCH();
+		}
+		instr_drop: {
+			stack.drop();
+			DISPATCH();
+		}
+		instr_select: {
+			auto c = stack.pop<int32_t>();
+			auto val2 = stack.pop<int32_t>();
+			auto val1 = stack.pop<int32_t>();
+			if (c) stack.push<int32_t>(val1);
+			else stack.push<int32_t>(val2);
+			DISPATCH();
+		}
+		instr_end: {
+			if (state.labelstack.empty()) {
 	std::cout << "executed " << num_instr << " instructions" << std::endl;
-					return true;
-				}
-				state.labelstack.pop();
-				break;
+				return true;
 			}
-			default:
+			state.labelstack.pop();
+			DISPATCH();
+		}
+		instr_unknown: {
 	std::cout << "executed " << num_instr << " instructions" << std::endl;
 				panic("Unknown instruction encountered " +
 						std::to_string((*expression)[pc].type));
-		};
-		pc++;
+		}
 	}
 	std::cout << "executed " << num_instr << " instructions" << std::endl;
 	return true;
