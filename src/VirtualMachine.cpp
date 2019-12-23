@@ -7,9 +7,13 @@ VirtualMachine::VirtualMachine(const std::string &path) :
        module(path) {
 
 	asm_state = new ASMInterpreterState;
+}
 
+void VirtualMachine::init() {
+	build_import_instances();
 	build_function_instances();
 	build_memory_instances();
+	build_data_instances();
 	state.globals = module.globals;
 
 	Frame frame;
@@ -18,6 +22,11 @@ VirtualMachine::VirtualMachine(const std::string &path) :
 	frame.prev_expr = 0;
 	frame.labelstack_size = 0;
 	state.callstack.push(frame);
+}
+
+void VirtualMachine::register_handler(const std::string &name,
+		NativeHandler handler) {
+	handlers[name] = handler;
 }
 
 int VirtualMachine::execute(int argc, char **argv) {
@@ -110,6 +119,7 @@ int VirtualMachine::execute_asm(int argc, char **argv) {
 void VirtualMachine::build_function_instances() {
 	for (size_t i = 0; i < module.function_code.size(); i++) {
 		FunctionInstance instance;
+		instance.type = FUNCTION_WASM;
 		instance.expression = module.function_code[i].expression;
 		instance.size = instance.expression.size() * sizeof(Instruction);
 		instance.signature = module.function_types[module.functions[i]];
@@ -135,6 +145,38 @@ void VirtualMachine::build_function_instances() {
 void VirtualMachine::build_memory_instances() {
 	for (auto &mem : module.memory_types)
 		state.memory.emplace_back(mem.first);
+}
+
+void VirtualMachine::build_import_instances() {
+	for (auto &import : module.imports) {
+		switch(import.description) {
+			case EXPORT_FUNC: {
+				if (import.module == "env") {
+					FunctionInstance instance;
+					instance.type = FUNCTION_NATIVE;
+
+					auto handler = handlers.find(import.name);
+					if(handler == handlers.end())
+						panic("could not resolve native import "
+								+ import.name);
+					instance.native_handler = handler->second;
+
+					state.functions.push_back(instance);
+				}
+				break;
+			}
+			default:
+				panic("unkown import descriptor");
+		}
+	}
+}
+
+void VirtualMachine::build_data_instances() {
+	for (auto &data : module.data) {
+		state.memory[data.memidx].copy(
+				reinterpret_cast<char*>(data.bytes.data()),
+				data.bytes.size(), data.offset);
+	}
 }
 
 } /* namespace bearwasm */

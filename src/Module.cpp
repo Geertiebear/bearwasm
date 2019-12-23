@@ -48,6 +48,10 @@ void Module::read_sections() {
 				parse_type_section();
 				dump_function_types();
 				break;
+			case SECTION_IMPORT:
+				parse_import_section();
+				dump_imports();
+				break;
 			case SECTION_FUNCTION:
 				parse_function_section();
 				dump_functions();
@@ -107,7 +111,6 @@ void Module::parse_type_section() {
 			auto type = stream_read<BinaryType>(file);
 			function_type.results.push_back(*type);
 		}
-
 
 		function_types.push_back(function_type);
 	}
@@ -283,6 +286,34 @@ void Module::parse_custom_section(int length) {
 	}
 }
 
+void Module::parse_import_section() {
+	auto num_entries = decode_varuint_s<uint32_t>(file);
+	if (!num_entries)
+		panic("Error reading num entries of import");
+
+	for (int i = 0; i < num_entries; i++) {
+		Import import;
+
+		auto module = read_string(file);
+		if (!module) panic("error reading import module!");
+		import.module = *module;
+
+		auto name = read_string(file);
+		if (!name) panic("error reading import name!");
+		import.name = *name;
+
+		auto description = stream_read<uint8_t>(file);
+		if (!description) panic("error reading import desc!");
+		import.description = *description;
+
+		auto idx = decode_varuint_s<uint32_t>(file);
+		if (!idx) panic ("error reading import idx");
+		import.idx = *idx;
+
+		imports.push_back(import);
+	}
+}
+
 static std::string type_to_string(BinaryType type) {
 	switch (type) {
 		case EMPTY: return "empty";
@@ -387,6 +418,18 @@ void Module::dump_code() {
 		for (auto &local : code.locals)
 			std::cout << type_to_string(local) << " ";
 		std::cout << std::endl;
+		i++;
+	}
+}
+
+void Module::dump_imports() {
+	std::cout << "Imports:" << std::endl;
+	int i = 0;
+	for (auto &import : imports) {
+		std::cout << "\t[" << i << "] name: "
+			<< import.module << "." <<
+			import.name << " type: " <<
+			import.description << std::endl;
 		i++;
 	}
 }

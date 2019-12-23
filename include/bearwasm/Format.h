@@ -48,6 +48,11 @@ struct Export {
 	int index;
 };
 
+struct Import {
+	std::string module, name;
+	int description, idx;
+};
+
 struct Exports {
 	std::vector<Export> func, table, mem, global;
 };

@@ -41,6 +41,14 @@ static void pop_args(InterpreterState &state, int idx) {
 
 static void invoke_function(InterpreterState &state, int idx,
 		const Expression *expression) {
+	FunctionInstance &instance = state.functions[idx];
+	if (instance.type == FUNCTION_NATIVE) {
+		int ret = instance.native_handler(&state);
+		/* TODO: support a return type other than an int32? */
+		state.stack.push<int32_t>(ret);
+		return;
+	}
+
 	pop_args(state, idx);
 
 	Frame frame;

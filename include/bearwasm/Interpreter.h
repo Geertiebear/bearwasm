@@ -14,7 +14,10 @@ namespace bearwasm {
 static constexpr int PC_END = -1;
 static constexpr int STACK_SIZE = 0x400000;
 
+struct InterpreterState;
 struct Instruction;
+
+using NativeHandler = int (*)(InterpreterState *state);
 
 struct MemArg {
 	uint32_t align, offset;
@@ -30,7 +33,14 @@ struct LocalInstance {
 	Value value;
 };
 
+enum InstanceType {
+	FUNCTION_WASM, //function in wasm
+	FUNCTION_NATIVE, //function from C
+};
+
 struct FunctionInstance {
+	InstanceType type;
+	NativeHandler native_handler;
 	FunctionType signature;
 	Expression expression;
 	std::vector<LocalInstance> locals;
@@ -72,6 +82,10 @@ public:
 		for (size_t i = 0; i < sizeof(T); i++)
 			data[i] = bytes[pos + i];
 		return ret;
+	}
+
+	char *data() {
+		return bytes.data();
 	}
 private:
 	int size;

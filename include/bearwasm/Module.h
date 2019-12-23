@@ -17,6 +17,7 @@ using Globals = std::vector<GlobalValue>;
 using FunctionCodes = std::vector<Code>;
 using FunctionNames = std::map<uint32_t, std::string>;
 using Data = std::vector<DataEntry>;
+using Imports = std::vector<Import>;
 
 class Module {
 public:
@@ -31,6 +32,7 @@ public:
 	FunctionCodes function_code;
 	FunctionNames function_names;
 	Data data;
+	Imports imports;
 private:
 	void read_sections();
 	void parse_type_section();
@@ -41,6 +43,7 @@ private:
 	void parse_export_section();
 	void parse_code_section();
 	void parse_data_section();
+	void parse_import_section();
 	void parse_custom_section(int length);
 	bool verify_signature();
 	
@@ -51,6 +54,7 @@ private:
 	void dump_globals();
 	void dump_exports();
 	void dump_code();
+	void dump_imports();
 
 	std::ifstream file;
 };
