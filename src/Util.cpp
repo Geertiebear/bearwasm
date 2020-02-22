@@ -2,34 +2,29 @@
 
 namespace bearwasm {
 
-void panic(const std::string &error) {
-	std::cout << error << std::endl;
-	exit(1);
-}
-
-std::optional<Limit> decode_limit(std::ifstream &stream) {
+frg::optional<Limit> decode_limit(DataStream *stream) {
 	auto has_max = stream_read<uint8_t>(stream);
-	auto min = decode_varuint_s<uint32_t>(stream);
+	auto min = decode_varuint<uint32_t>(stream);
 	if (!min || !has_max)
-		return std::nullopt;
-	std::optional<uint8_t> max = 0;
+		return frg::null_opt;
+	frg::optional<uint8_t> max = 0;
 	if (*has_max) {
-		max = decode_varuint_s<uint32_t>(stream);
+		max = decode_varuint<uint32_t>(stream);
 		if (!max)
-			return std::nullopt;
+			return frg::null_opt;
 	}
-	return std::make_pair(*min, *max);
+	return frg::make_tuple(*min, *max);
 }
 
-std::optional<std::string> read_string(std::ifstream &stream) {
-	std::string ret;
+frg::optional<frg::string<frg_allocator>> read_string(DataStream *stream) {
+	frg::string<frg_allocator> ret;
 
 	auto length = stream_read<uint8_t>(stream);
-	if (!length) return std::nullopt;
+	if (!length) return frg::null_opt;
 
 	ret.resize(*length);
-	auto &res = stream.read(&ret[0], *length);
-	if (res.fail()) return std::nullopt;
+	auto res = stream->read(&ret[0], *length);
+	if (!res) return frg::null_opt;
 	return ret;
 }
 

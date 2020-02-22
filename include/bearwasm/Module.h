@@ -1,27 +1,31 @@
 #ifndef BEARWASM_MODULE_H
 #define BEARWASM_MODULE_H
 
-#include <string>
-#include <map>
-#include <fstream>
+#include <frg/vector.hpp>
+#include <frg/string.hpp>
+#include <frg/hash.hpp>
+#include <frg/hash_map.hpp>
+#include <bearwasm/Util.h>
+#include <bearwasm/FriggAllocator.h>
 #include <bearwasm/Format.h>
 #include <bearwasm/Interpreter.h>
 
 namespace bearwasm {
 
-using FunctionTypes = std::vector<FunctionType>;
-using Functions = std::vector<uint32_t>;
-using Tables = std::vector<Table>;
-using MemoryTypes = std::vector<MemoryType>;
-using Globals = std::vector<GlobalValue>;
-using FunctionCodes = std::vector<Code>;
-using FunctionNames = std::map<uint32_t, std::string>;
-using Data = std::vector<DataEntry>;
-using Imports = std::vector<Import>;
+using FunctionTypes = frg::vector<FunctionType, frg_allocator>;
+using Functions = frg::vector<uint32_t, frg_allocator>;
+using Tables = frg::vector<Table, frg_allocator>;
+using MemoryTypes = frg::vector<MemoryType, frg_allocator>;
+using Globals = frg::vector<GlobalValue, frg_allocator>;
+using FunctionCodes = frg::vector<Code, frg_allocator>;
+using FunctionNames = frg::hash_map<uint32_t, frg::string<frg_allocator>,
+      frg::hash<int>, frg_allocator>;
+using Data = frg::vector<DataEntry, frg_allocator>;
+using Imports = frg::vector<Import, frg_allocator>;
 
 class Module {
 public:
-	Module(const std::string &path);
+	Module(DataStream *stream);
 
 	FunctionTypes function_types;
 	Functions functions;
@@ -56,7 +60,7 @@ private:
 	void dump_code();
 	void dump_imports();
 
-	std::ifstream file;
+	DataStream *stream;
 };
 
 } /* namespace bearwasm */

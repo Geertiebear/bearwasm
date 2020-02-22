@@ -2,7 +2,8 @@
 #define BEARWASM_BINARYFORMAT_H
 
 #include <stdint.h>
-#include <map>
+#include <frg/hash.hpp>
+#include <frg/hash_map.hpp>
 
 namespace bearwasm {
 
@@ -102,7 +103,9 @@ enum InstructionArgSize {
 	SIZE_MEMARG,
 };
 
-static const std::map<Instructions, InstructionArgSize> instruction_sizes {
+static const frg::hash_map<Instructions, InstructionArgSize,
+	     frg::hash<int>, frg_allocator> instruction_sizes {
+	frg::hash<int>{}, {
 	{INSTR_BLOCK, SIZE_BLOCK},
 	{INSTR_LOOP, SIZE_BLOCK},
 	{INSTR_IF, SIZE_BLOCK},
@@ -145,7 +148,7 @@ static const std::map<Instructions, InstructionArgSize> instruction_sizes {
 	{I_32_EQ, SIZE_0},
 	{I_32_LE_U, SIZE_0},
 	{I_32_LT_U, SIZE_0},
-	{I_32_OR, SIZE_0},
+	{I_32_OR, SIZE_0},}
 };
 
 } /* namespace bearwasm */

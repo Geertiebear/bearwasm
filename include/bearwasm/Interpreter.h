@@ -1,11 +1,11 @@
 #ifndef BEARWASM_INTERPRETER_H
 #define BEARWASM_INTERPRETER_H
 
-#include <optional>
-#include <vector>
-#include <fstream>
-#include <stack>
-#include <memory>
+#include <frg/vector.hpp>
+#include <frg/stack.hpp>
+#include <frg/optional.hpp>
+#include <frg/string.hpp>
+#include <bearwasm/FriggAllocator.h>
 #include <bearwasm/Stack.h>
 #include <bearwasm/Format.h>
 
@@ -43,8 +43,8 @@ struct FunctionInstance {
 	NativeHandler native_handler;
 	FunctionType signature;
 	Expression expression;
-	std::vector<LocalInstance> locals;
-	std::string name;
+	frg::vector<LocalInstance, frg_allocator> locals;
+	frg::string<frg_allocator> name;
 	int size;
 };
 
@@ -89,12 +89,12 @@ public:
 	}
 private:
 	int size;
-	std::vector<char> bytes;
+	frg::vector<char, frg_allocator> bytes;
 };
 
 struct TableInstance {
 	int max;
-	std::vector<int> function_address;
+	frg::vector<int, frg_allocator> function_address;
 };
 
 struct Frame {
@@ -109,15 +109,14 @@ struct Label {
 };
 
 struct InterpreterState {
-	InterpreterState() : stack(STACK_SIZE), pc(0)
-	{}
-	std::vector<FunctionInstance> functions;
-	std::vector<MemoryInstance> memory;
-	std::vector<TableInstance> tables;
-	std::vector<GlobalValue> globals;
+	InterpreterState() : stack(STACK_SIZE), pc(0) {}
+	frg::vector<FunctionInstance, frg_allocator> functions;
+	frg::vector<MemoryInstance, frg_allocator> memory;
+	frg::vector<TableInstance, frg_allocator> tables;
+	frg::vector<GlobalValue, frg_allocator> globals;
 	Stack stack;
-	std::stack<Frame> callstack;
-	std::stack<Label> labelstack;
+	frg::stack<Frame, frg_allocator> callstack;
+	frg::stack<Label, frg_allocator> labelstack;
 
 	int current_function;
 	size_t pc;
@@ -161,11 +160,12 @@ struct Instruction {
 class Interpreter {
 public:
 	static bool interpret(InterpreterState &state);
-	static std::optional<GlobalValue> interpret_global(
-			std::ifstream &stream);
-	static std::optional<uint32_t> interpret_offset(
-			std::ifstream &stream);
-	static std::vector<Instruction> decode_code(std::ifstream &stream);
+	static frg::optional<GlobalValue> interpret_global(
+			DataStream *stream);
+	static frg::optional<uint32_t> interpret_offset(
+			DataStream *stream);
+	static frg::vector<Instruction, frg_allocator> decode_code(DataStream
+            *stream);
 };
 
 }/* namespace bearwasm*/

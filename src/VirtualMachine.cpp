@@ -3,8 +3,9 @@
 
 namespace bearwasm {
 
-VirtualMachine::VirtualMachine(const std::string &path) :
-       module(path) {
+VirtualMachine::VirtualMachine(DataStream *stream) :
+	module(stream), handlers(frg::hash<frg::string<
+		       frg_allocator>>{})	{
 
 	asm_state = new ASMInterpreterState;
 }
@@ -24,7 +25,7 @@ void VirtualMachine::init() {
 	state.callstack.push(frame);
 }
 
-void VirtualMachine::register_handler(const std::string &name,
+void VirtualMachine::register_handler(const frg::string<frg_allocator> &name,
 		NativeHandler handler) {
 	handlers[name] = handler;
 }
@@ -50,7 +51,6 @@ int VirtualMachine::execute(int argc, char **argv) {
 	for (int i = 0; i < argc; i++) {
 		auto arg = argv[i];
 		auto length = strlen(arg);
-		std::cout << length << std::endl;
 		uint32_t location = (5 + (argc * 4)  + offset);
 		state.memory[0].copy(reinterpret_cast<char*>(&location), 4, 5 + (i * 4));
 		state.memory[0].copy(arg, length, location);
@@ -97,13 +97,11 @@ int VirtualMachine::execute_asm(int argc, char **argv) {
 	asm_state->memory_sizes[0] = state.memory[0].get_size();
 	asm_state->memories = new char*[1];
 	asm_state->memories[0] = new char[asm_state->memory_sizes[0]];
-	std::cout << static_cast<void*>(asm_state->memories[0]) << std::endl;
 
 	int offset = 0;
 	for (int i = 0; i < argc; i++) {
 		auto arg = argv[i];
 		auto length = strlen(arg);
-		std::cout << length << std::endl;
 		auto location = (5 + (argc * 4)  + offset);
 		memcpy((asm_state->memories[0] + 5 + (i * 4)),
 				reinterpret_cast<char*>(&location), 4);
@@ -125,26 +123,26 @@ void VirtualMachine::build_function_instances() {
 		instance.signature = module.function_types[module.functions[i]];
 		auto name_it = module.function_names.find(i);
 		if (name_it != module.function_names.end())
-			instance.name = name_it->second;
+			instance.name = name_it->template get<1>();
 		for (const auto param : instance.signature.parameters) {
 			LocalInstance local_instance;
 			local_instance.type = param;
 			local_instance.value.int32_val = 0;
-			instance.locals.push_back(local_instance);
+			instance.locals.push(local_instance);
 		}
 		for (auto &local : module.function_code[i].locals) {
 			LocalInstance local_instance;
 			local_instance.type = local;
 			local_instance.value.int32_val = 0;
-			instance.locals.push_back(local_instance);
+			instance.locals.push(local_instance);
 		}
-		state.functions.push_back(instance);
-	}
+		state.functions.push(instance);
+    }
 }
 
 void VirtualMachine::build_memory_instances() {
 	for (auto &mem : module.memory_types)
-		state.memory.emplace_back(mem.first);
+		state.memory.emplace_back(mem.template get<0>());
 }
 
 void VirtualMachine::build_import_instances() {
@@ -157,11 +155,13 @@ void VirtualMachine::build_import_instances() {
 
 					auto handler = handlers.find(import.name);
 					if(handler == handlers.end())
-						panic("could not resolve native import "
-								+ import.name);
-					instance.native_handler = handler->second;
+						panic("could not resolve "
+					   "native import %s",
+							import.name.data());
+					instance.native_handler =
+						handler->template get<1>();
 
-					state.functions.push_back(instance);
+					state.functions.push(instance);
 				}
 				break;
 			}

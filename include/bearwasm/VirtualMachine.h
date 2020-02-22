@@ -1,7 +1,10 @@
 #ifndef BEARWASM_VM_H
 #define BEARWASM_VM_H
 
-#include <string>
+#include <frg/string.hpp>
+#include <frg/hash.hpp>
+#include <frg/hash_map.hpp>
+#include <bearwasm/FriggAllocator.h>
 #include <bearwasm/Interpreter.h>
 #include <bearwasm/Module.h>
 
@@ -11,10 +14,11 @@ namespace bearwasm {
 
 class VirtualMachine {
 public:
-	VirtualMachine(const std::string &path);
+	VirtualMachine(DataStream *stream);
 	void init();
 
-	void register_handler(const std::string &name, NativeHandler handler);
+	void register_handler(const frg::string<frg_allocator> &name,
+            NativeHandler handler);
 
 	int execute(int argc, char **argv);
 	int execute_asm(int argc, char **argv);
@@ -27,7 +31,9 @@ private:
 	InterpreterState state;
 	ASMInterpreterState *asm_state;
 	Module module;
-	std::unordered_map<std::string, NativeHandler> handlers;
+	frg::hash_map<frg::string<frg_allocator>,
+        NativeHandler, frg::hash<frg::string<frg_allocator>>,
+        frg_allocator> handlers;
 };
 
 } /* namespace bearwasm */

@@ -1,9 +1,7 @@
 #ifndef BEARWASM_STACK_H
 #define BEARWASM_STACK_H
 
-#include <iostream>
 #include <stdint.h>
-#include <vector>
 #include <cassert>
 
 #include <bearwasm/Format.h>

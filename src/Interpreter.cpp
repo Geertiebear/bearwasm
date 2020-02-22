@@ -1,5 +1,8 @@
 #include <bearwasm/Interpreter.h>
 
+#include <algorithm>
+#include <iterator>
+
 namespace bearwasm {
 
 static void pop_args(InterpreterState &state, int idx) {
@@ -122,6 +125,7 @@ bool Interpreter::interpret(InterpreterState &state) {
 #define DISPATCH() log_debug("pc %d\n", pc); \
 	instruction = (*expression)[pc++]; \
 	num_instr++; \
+    log_debug("instr %d\n", instruction.type); \
 	goto *dispatch_table[instruction.type];
 
 	while (pc < expression->size()) {
@@ -419,39 +423,38 @@ bool Interpreter::interpret(InterpreterState &state) {
 		}
 		instr_end: {
 			if (state.labelstack.empty()) {
-	std::cout << "executed " << num_instr << " instructions" << std::endl;
 				return true;
 			}
 			state.labelstack.pop();
 			DISPATCH();
 		}
 		instr_unknown: {
-	std::cout << "executed " << num_instr << " instructions" << std::endl;
-				panic("Unknown instruction encountered " +
-						std::to_string((*expression)[pc].type));
+				panic("Unknown instruction encountered %d",
+						(*expression)[pc].type);
 		}
 	}
-	std::cout << "executed " << num_instr << " instructions" << std::endl;
 	return true;
 }
 
-std::optional<GlobalValue> Interpreter::interpret_global(
-		std::ifstream &stream) {
+frg::optional<GlobalValue> Interpreter::interpret_global(
+		DataStream *stream) {
 	GlobalValue ret;
-	auto type = static_cast<BinaryType>(stream.get());
-	ret.type = type;
-	ret.mut = static_cast<bool>(stream.get());
+	auto type = stream_read<BinaryType>(stream);
+	if (!type)
+	    panic("Could not read global type");
+	ret.type = *type;
+	ret.mut = static_cast<bool>(stream->get());
 
 	InterpreterState state;
 	state.functions.resize(1);
 	/* TODO: write a span so we can avoid copies */
-	auto start_pos = stream.tellg();
+	auto start_pos = stream->tell();
 	state.functions[0].expression = decode_code(stream);
-	state.functions[0].size = stream.tellg() - start_pos;
+	state.functions[0].size = stream->tell() - start_pos;
 	state.current_function = 0;
-	if(!interpret(state)) return std::nullopt;
+	if(!interpret(state)) return frg::null_opt;
 
-	switch (type) {
+	switch (*type) {
 		case EMPTY:
 			break;
 		case I_32:
@@ -470,22 +473,23 @@ std::optional<GlobalValue> Interpreter::interpret_global(
 	return ret;
 }
 
-std::optional<uint32_t> Interpreter::interpret_offset(
-		std::ifstream &stream) {
+frg::optional<uint32_t> Interpreter::interpret_offset(
+		DataStream *stream) {
 	InterpreterState state;
 	state.functions.resize(1);
 	/* TODO: write a span so we can avoid copies */
-	auto start_pos = stream.tellg();
+	auto start_pos = stream->tell();
 	state.functions[0].expression = decode_code(stream);
-	state.functions[0].size = stream.tellg() - start_pos;
+	state.functions[0].size = stream->tell() - start_pos;
 	state.current_function = 0;
-	if(!interpret(state)) return std::nullopt;
+	if(!interpret(state)) return frg::null_opt;
 
 	return state.stack.pop<uint32_t>();
 }
 
-std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
-	std::vector<Instruction> ret;
+frg::vector<Instruction, frg_allocator> Interpreter::decode_code(
+        DataStream *stream) {
+	frg::vector<Instruction, frg_allocator> ret;
 
 	auto instruction = stream_read<Instructions>(stream);
 	if (!instruction)
@@ -495,16 +499,16 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 
 		if (*instruction == INSTR_END) {
 			inst.type = *instruction;
-			ret.push_back(inst);
+			ret.push(inst);
 			return ret;
 		}
 
 		auto arg_size = instruction_sizes.find(*instruction);
 		if (arg_size == instruction_sizes.end())
-			panic("Don't know size of instruction " +
-				std::to_string(*instruction));
+			panic("Don't know size of instruction %d",
+				*instruction);
 
-		switch (arg_size->second) {
+		switch (arg_size->template get<1>()) {
 			case SIZE_BLOCK: {
 				/* TODO: free this somewhere */
 				Block block;
@@ -517,7 +521,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				block.size = instructions.size();
 				inst.arg.block = block;
 				inst.type = *instruction;
-				ret.push_back(inst);
+				ret.push(inst);
 				std::copy(instructions.begin(), instructions.end(),
 						std::back_inserter(ret));
 				instruction = stream_read<Instructions>(stream);
@@ -532,7 +536,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				break;
 			}
 			case SIZE_I32: {
-				auto value = decode_varint_s<int32_t>(stream);
+				auto value = decode_varint<int32_t>(stream);
 				if (!value)
 					panic("Unable to read value");
 				inst.arg.int32_val = *value;
@@ -540,7 +544,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				break;
 			}
 			case SIZE_I64: {
-				auto value = decode_varint_s<int64_t>(stream);
+				auto value = decode_varint<int64_t>(stream);
 				if (!value)
 					panic("Unable to read value");
 				inst.arg.int64_val = *value;
@@ -548,7 +552,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				break;
 			}
 			case SIZE_U32: {
-				auto value = decode_varuint_s<uint32_t>(stream);
+				auto value = decode_varuint<uint32_t>(stream);
 				if (!value)
 					panic("Unable to read value");
 				inst.arg.uint32_val = *value;
@@ -556,7 +560,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				break;
 			}
 			case SIZE_U64: {
-				auto value = decode_varuint_s<uint64_t>(stream);
+				auto value = decode_varuint<uint64_t>(stream);
 				if (!value)
 					panic("Unable to read value");
 				inst.arg.uint64_val = *value;
@@ -568,8 +572,8 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 				break;
 			}
 			case SIZE_MEMARG: {
-				auto align = decode_varuint_s<uint32_t>(stream);
-				auto offset = decode_varuint_s<uint32_t>(stream);
+				auto align = decode_varuint<uint32_t>(stream);
+				auto offset = decode_varuint<uint32_t>(stream);
 				if (!align || !offset)
 					panic("Unable to read value");
 				MemArg arg;
@@ -583,7 +587,7 @@ std::vector<Instruction> Interpreter::decode_code(std::ifstream &stream) {
 			default:
 				panic("Unable to handle size");
 		}
-		ret.push_back(inst);
+		ret.push(inst);
 
 		instruction = stream_read<Instructions>(stream);
 	}

@@ -1,0 +1,6 @@
+[submodule "subprojects/frigg"]
+	path = subprojects/frigg
+	url = https://github.com/managarm/frigg.git
+[submodule "subprojects/cxxshim"]
+	path = subprojects/cxxshim
+	url = https://github.com/managarm/cxxshim.git

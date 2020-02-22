@@ -1,15 +1,18 @@
 #ifndef BEARWASM_FORMAT_H
 #define BEARWASM_FORMAT_H
 
-#include <vector>
+#include <bearwasm/FriggAllocator.h>
 #include <bearwasm/BinaryFormat.h>
 #include <bearwasm/Util.h>
+
+#include <frg/vector.hpp>
+#include <frg/string.hpp>
 
 namespace bearwasm {
 
 struct Instruction;
 
-using Expression = std::vector<Instruction>;
+using Expression = frg::vector<Instruction, frg_allocator>;
 using MemoryType = Limit;
 using Value = union {
 		int32_t int32_val; 
@@ -20,7 +23,7 @@ using Value = union {
 using Local = BinaryType;
 
 struct FunctionType {
-	std::vector<BinaryType> results, parameters;
+    frg::vector<BinaryType, frg_allocator> results, parameters;
 };
 
 struct Table {
@@ -28,13 +31,13 @@ struct Table {
 	Limit limit;
 	/* for now just contains a vector of
 	 * function types but that may change later */
-	std::vector<uint32_t> data;
+    frg::vector<uint32_t, frg_allocator> data;
 };
 
 struct Code {
 	uint32_t size;
 	Expression expression;
-	std::vector<Local> locals;
+    frg::vector<Local, frg_allocator> locals;
 };
 
 struct GlobalValue {
@@ -44,23 +47,23 @@ struct GlobalValue {
 };
 
 struct Export {
-	std::string name;
+	frg::string<frg_allocator> name;
 	int index;
 };
 
 struct Import {
-	std::string module, name;
+	frg::string<frg_allocator> module, name;
 	int description, idx;
 };
 
 struct Exports {
-	std::vector<Export> func, table, mem, global;
+    frg::vector<Export, frg_allocator> func, table, mem, global;
 };
 
 struct DataEntry {
 	int memidx;
 	int offset;
-	std::vector<uint8_t> bytes;
+    frg::vector<uint8_t, frg_allocator> bytes;
 };
 
 }/* namespace bearwasm */
