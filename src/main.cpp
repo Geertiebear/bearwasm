@@ -2,9 +2,8 @@
 #include <fstream>
 #include <stdio.h>
 #include <stdlib.h>
-#include <bearwasm/Util.h>
 #include <bearwasm/VirtualMachine.h>
-#include <bearwasm/FriggAllocator.h>
+#include <bearwasm/host.hpp>
 
 void *frg_allocator::allocate(size_t size) {
 	return malloc(size);

@@ -5,7 +5,7 @@
 #include <frg/stack.hpp>
 #include <frg/optional.hpp>
 #include <frg/string.hpp>
-#include <bearwasm/FriggAllocator.h>
+#include <bearwasm/host.hpp>
 #include <bearwasm/Stack.h>
 #include <bearwasm/Format.h>
 

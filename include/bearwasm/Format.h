@@ -1,7 +1,7 @@
 #ifndef BEARWASM_FORMAT_H
 #define BEARWASM_FORMAT_H
 
-#include <bearwasm/FriggAllocator.h>
+#include <bearwasm/host.hpp>
 #include <bearwasm/BinaryFormat.h>
 #include <bearwasm/Util.h>
 

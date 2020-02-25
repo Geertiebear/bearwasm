@@ -4,7 +4,7 @@
 #include <frg/string.hpp>
 #include <frg/hash.hpp>
 #include <frg/hash_map.hpp>
-#include <bearwasm/FriggAllocator.h>
+#include <bearwasm/host.hpp>
 #include <bearwasm/Interpreter.h>
 #include <bearwasm/Module.h>
 

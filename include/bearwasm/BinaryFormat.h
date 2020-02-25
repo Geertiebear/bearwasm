@@ -2,6 +2,7 @@
 #define BEARWASM_BINARYFORMAT_H
 
 #include <stdint.h>
+#include <bearwasm/host.hpp>
 #include <frg/hash.hpp>
 #include <frg/hash_map.hpp>
 
