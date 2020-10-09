@@ -6,7 +6,6 @@
 #include <frg/optional.hpp>
 #include <frg/string.hpp>
 #include <bearwasm/host.hpp>
-#include <bearwasm/Stack.h>
 #include <bearwasm/Format.h>
 
 namespace bearwasm {
@@ -108,18 +107,19 @@ struct Label {
 	int pc_cont, pc_end;
 };
 
+
 struct InterpreterState {
-	InterpreterState() : stack(STACK_SIZE), pc(0) {}
+	InterpreterState() : pc(0) {}
 	frg::vector<FunctionInstance, frg_allocator> functions;
 	frg::vector<MemoryInstance, frg_allocator> memory;
 	frg::vector<TableInstance, frg_allocator> tables;
 	frg::vector<GlobalValue, frg_allocator> globals;
-	Stack stack;
+	frg::stack<Value, frg_allocator> stack;
 	frg::stack<Frame, frg_allocator> callstack;
 	frg::stack<Label, frg_allocator> labelstack;
 
 	int current_function;
-	size_t pc;
+	int pc;
 };
 
 struct ASMInterpreterState {
@@ -138,11 +138,6 @@ struct ASMInterpreterState {
 };
 
 struct Instruction {
-	/* instructions are only a byte but
-	 * this would make the struct unaligned
-	 * since the size of the union is 8 bytes
-	 * so we make the struct 16 bytes long
-	 * to keep it aligned */
 	uint64_t type;
 	union {
 		uint8_t uint8_val;

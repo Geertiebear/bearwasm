@@ -32,7 +32,7 @@ void VirtualMachine::register_handler(const frg::string<frg_allocator> &name,
 
 int VirtualMachine::execute(int argc, char **argv) {
 	state.current_function = -1;
-	for (const auto func : module.exports.func)
+	for (const auto &func : module.exports.func)
 		if (func.name == "main")
 			state.current_function = func.index;
 	if (state.current_function == -1)
@@ -57,8 +57,8 @@ int VirtualMachine::execute(int argc, char **argv) {
 		offset += length;
 	}
 	Interpreter::interpret(state);
-	auto res = state.stack.pop<uint32_t>();
-	return res;
+	auto res = state.stack.top();
+	return res.int32_val;
 }
 
 int VirtualMachine::execute_asm(int argc, char **argv) {
@@ -66,7 +66,7 @@ int VirtualMachine::execute_asm(int argc, char **argv) {
 	asm_state->pc = 0;
 
 	asm_state->expression_no = -1;
-	for (const auto func : module.exports.func)
+	for (const auto &func : module.exports.func)
 		if (func.name == "main")
 			asm_state->expression_no = func.index;
 	if (asm_state->expression_no == -1)

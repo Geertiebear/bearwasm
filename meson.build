@@ -15,7 +15,8 @@ cxxshim_dep = cxxshim.get_variable('cxxshim_dep')
 
 bearwasm_lib = static_library('bearwasm', [bearwasm_sources],
   include_directories: cpp_includes, dependencies: [frigg_dep, cxxshim_dep],
-  cpp_args: ['-ffreestanding', '-fno-exceptions', '-fno-rtti'])
+  cpp_args: ['-ffreestanding', '-fno-exceptions', '-fno-rtti', '-nostdlib'],
+  link_args: ['-nostdlib'])
 
 executable('bearwasm', [linux_sources], include_directories: cpp_includes,
   link_with: bearwasm_lib, dependencies: [frigg_dep])

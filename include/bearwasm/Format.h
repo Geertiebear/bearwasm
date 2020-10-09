@@ -14,16 +14,29 @@ struct Instruction;
 
 using Expression = frg::vector<Instruction, frg_allocator>;
 using MemoryType = Limit;
-using Value = union {
+using Local = BinaryType;
+
+struct Value {
+	Value() : int32_val(0) { }
+	Value(const Value &val) = default;
+	Value(int32_t val) : int32_val(val) { }
+	Value(uint32_t val) : uint32_val(val) { }
+	Value(int64_t val) : int64_val(val) { }
+	Value(uint64_t val) : uint64_val(val) { }
+	Value(float val) : float_val(val) { }
+	Value(double val) : double_val(val) { }
+	union {
 		int32_t int32_val; 
+		uint32_t uint32_val;
 		int64_t int64_val;
+		uint64_t uint64_val;
 		float float_val; 
 		double double_val;
 	};
-using Local = BinaryType;
+};
 
 struct FunctionType {
-    frg::vector<BinaryType, frg_allocator> results, parameters;
+	frg::vector<BinaryType, frg_allocator> results, parameters;
 };
 
 struct Table {
@@ -31,13 +44,13 @@ struct Table {
 	Limit limit;
 	/* for now just contains a vector of
 	 * function types but that may change later */
-    frg::vector<uint32_t, frg_allocator> data;
+	frg::vector<uint32_t, frg_allocator> data;
 };
 
 struct Code {
 	uint32_t size;
 	Expression expression;
-    frg::vector<Local, frg_allocator> locals;
+	frg::vector<Local, frg_allocator> locals;
 };
 
 struct GlobalValue {
@@ -57,13 +70,13 @@ struct Import {
 };
 
 struct Exports {
-    frg::vector<Export, frg_allocator> func, table, mem, global;
+	frg::vector<Export, frg_allocator> func, table, mem, global;
 };
 
 struct DataEntry {
 	int memidx;
 	int offset;
-    frg::vector<uint8_t, frg_allocator> bytes;
+	frg::vector<uint8_t, frg_allocator> bytes;
 };
 
 }/* namespace bearwasm */

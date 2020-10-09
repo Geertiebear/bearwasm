@@ -57,7 +57,9 @@ private:
 };
 
 static int print(bearwasm::InterpreterState *state) {
-	int ptr = state->stack.pop<int32_t>();
+	auto val = state->stack.top();
+	state->stack.pop();
+	int ptr = val.int32_val;
 	char *str = reinterpret_cast<char*>(
 			state->memory[0].data() + ptr);
 	return printf(str);

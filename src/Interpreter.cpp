@@ -8,37 +8,11 @@ namespace bearwasm {
 static void pop_args(InterpreterState &state, int idx) {
 	auto &next = state.functions[idx];
 	const auto &params = next.signature.parameters;
-	for (size_t i = params.size(); i > 0; i--) {
-		const auto param = params[i - 1];
-			next.locals[i - 1].type = param;
-		switch (param) {
-			case I_32: {
-				auto value = state.stack.pop<
-					int32_t>();
-				next.locals[i - 1].value.int32_val = value;
-				break;
-			}
-			case I_64: {
-				auto value = state.stack.pop<
-					int64_t>();
-				next.locals[i - 1].value.int64_val = value;
-				break;
-			}
-			case F_32: {
-				auto value = state.stack.pop<
-					float>();
-				next.locals[i - 1].value.float_val = value;
-				break;
-			}
-			case F_64: {
-				auto value = state.stack.pop<
-					double>();
-				next.locals[i - 1].value.double_val = value;
-				break;
-			}
-			default:
-				   panic("Unkown function arg");
-		}
+	for (size_t i = params.size() - 1; i >= 0; i--) {
+		auto value = state.stack.top();
+		state.stack.pop();
+		next.locals[i].value = value;
+		next.locals[i].type = params[i];
 	}
 }
 
@@ -46,9 +20,8 @@ static void invoke_function(InterpreterState &state, int idx,
 		const Expression *expression) {
 	FunctionInstance &instance = state.functions[idx];
 	if (instance.type == FUNCTION_NATIVE) {
-		int ret = instance.native_handler(&state);
-		/* TODO: support a return type other than an int32? */
-		state.stack.push<int32_t>(ret);
+		auto value = instance.native_handler(&state);
+		state.stack.push(value);
 		return;
 	}
 
@@ -80,48 +53,47 @@ bool Interpreter::interpret(InterpreterState &state) {
 	const Expression *expression = &functions[current_function]
 		.expression;
 
-	constexpr void *dispatch_table[] = {
-		[0 ... 255] = &&instr_unknown,
-		[I_32_CONST] = &&i_32_const,
-		[I_64_CONST] = &&i_64_const,
-		[GLOBAL_GET] = &&global_get,
-		[GLOBAL_SET] = &&global_set,
-		[LOCAL_SET] = &&local_set,
-		[LOCAL_GET] = &&local_get,
-		[LOCAL_TEE] = &&local_tee,
-		[I_32_EQZ] = &&i_32_eqz,
-		[I_32_EQ] = &&i_32_eq,
-		[I_32_NE] = &&i_32_ne,
-		[I_32_LT_S] = &&i_32_lt_s,
-		[I_32_LT_U] = &&i_32_lt_u,
-		[I_32_GT_S] = &&i_32_gt_s,
-		[I_32_GT_U] = &&i_32_gt_u,
-		[I_32_LE_S] = &&i_32_le_s,
-		[I_32_LE_U] = &&i_32_le_u,
-		[I_32_ADD] = &&i_32_add,
-		[I_32_SUB] = &&i_32_sub,
-		[I_32_MUL] = &&i_32_mul,
-		[I_32_AND] = &&i_32_and,
-		[I_32_OR] = &&i_32_or,
-		[I_32_SHL] = &&i_32_shl,
-		[I_32_SHR_S] = &&i_32_shr_s,
-		[I_32_DIV_S] = &&i_32_div_s,
-		[I_32_REM_S] = &&i_32_rem_s,
-		[I_32_STORE] = &&i_32_store,
-		[I_32_LOAD] = &&i_32_load,
-		[I_32_LOAD_8_U] = &&i_32_load_8_u,
-		[I_32_LOAD_8_S] = &&i_32_load_8_s,
-		[INSTR_CALL] = &&instr_call,
-		[INSTR_RETURN] = &&instr_return,
-		[INSTR_BLOCK] = &&instr_block,
-		[INSTR_LOOP] = &&instr_loop,
-		[INSTR_IF] = &&instr_if,
-		[BR] = &&br,
-		[BR_IF] = &&br_if,
-		[INSTR_DROP] = &&instr_drop,
-		[INSTR_SELECT] = &&instr_select,
-		[INSTR_END] = &&instr_end,
-	};
+	static void *dispatch_table[255] = {};
+	std::fill_n(dispatch_table, 255, &&instr_unknown);
+	dispatch_table[I_32_CONST] = &&i_32_const;
+	dispatch_table[I_64_CONST] = &&i_64_const;
+	dispatch_table[GLOBAL_GET] = &&global_get;
+	dispatch_table[GLOBAL_SET] = &&global_set;
+	dispatch_table[LOCAL_SET] = &&local_set;
+	dispatch_table[LOCAL_GET] = &&local_get;
+	dispatch_table[LOCAL_TEE] = &&local_tee;
+	dispatch_table[I_32_EQZ] = &&i_32_eqz;
+	dispatch_table[I_32_EQ] = &&i_32_eq;
+	dispatch_table[I_32_NE] = &&i_32_ne;
+	dispatch_table[I_32_LT_S] = &&i_32_lt_s;
+	dispatch_table[I_32_LT_U] = &&i_32_lt_u;
+	dispatch_table[I_32_GT_S] = &&i_32_gt_s;
+	dispatch_table[I_32_GT_U] = &&i_32_gt_u;
+	dispatch_table[I_32_LE_S] = &&i_32_le_s;
+	dispatch_table[I_32_LE_U] = &&i_32_le_u;
+	dispatch_table[I_32_ADD] = &&i_32_add;
+	dispatch_table[I_32_SUB] = &&i_32_sub;
+	dispatch_table[I_32_MUL] = &&i_32_mul;
+	dispatch_table[I_32_AND] = &&i_32_and;
+	dispatch_table[I_32_OR] = &&i_32_or;
+	dispatch_table[I_32_SHL] = &&i_32_shl;
+	dispatch_table[I_32_SHR_S] = &&i_32_shr_s;
+	dispatch_table[I_32_DIV_S] = &&i_32_div_s;
+	dispatch_table[I_32_REM_S] = &&i_32_rem_s;
+	dispatch_table[I_32_STORE] = &&i_32_store;
+	dispatch_table[I_32_LOAD] = &&i_32_load;
+	dispatch_table[I_32_LOAD_8_U] = &&i_32_load_8_u;
+	dispatch_table[I_32_LOAD_8_S] = &&i_32_load_8_s;
+	dispatch_table[INSTR_CALL] = &&instr_call;
+	dispatch_table[INSTR_RETURN] = &&instr_return;
+	dispatch_table[INSTR_BLOCK] = &&instr_block;
+	dispatch_table[INSTR_LOOP] = &&instr_loop;
+	dispatch_table[INSTR_IF] = &&instr_if;
+	dispatch_table[BR] = &&br;
+	dispatch_table[BR_IF] = &&br_if;
+	dispatch_table[INSTR_DROP] = &&instr_drop;
+	dispatch_table[INSTR_SELECT] = &&instr_select;
+	dispatch_table[INSTR_END] = &&instr_end;
 #define DISPATCH() log_debug("pc %d\n", pc); \
 	instruction = (*expression)[pc++]; \
 	num_instr++; \
@@ -133,164 +105,195 @@ bool Interpreter::interpret(InterpreterState &state) {
 		Instruction instruction;
 		DISPATCH();
 		i_32_const: {
-			stack.push(instruction.arg.int32_val);
+			stack.emplace(instruction.arg.int32_val);
 			DISPATCH();
 		}
 		i_64_const: {
-			stack.push(instruction.arg.int64_val);
+			stack.emplace(instruction.arg.int64_val);
 			DISPATCH();
 		}
 		/* TODO: floating point const instructions */
 		global_get: {
 			auto idx = instruction.arg.uint32_val;
-			stack.push_val(state.globals[idx].value,
-					state.globals[idx].type);
+			stack.push(state.globals[idx].value);
 			DISPATCH();
 		}
 		global_set: {
 			auto idx = instruction.arg.uint32_val;
-			auto type = state.globals[idx].type;
-			state.globals[idx].value = stack.
-				pop_variant(type);
+			state.globals[idx].value = stack.top();
+			stack.pop();
 			DISPATCH();
 		}
 		local_set: {
 			auto idx = instruction.arg.uint32_val;
-			auto type = state.functions[current_function].
-				locals[idx].type;
 			state.functions[current_function].locals[idx].
-				value = stack.pop_variant(type);
+				value = stack.top();
+			stack.pop();
 			DISPATCH();
 		}
 		local_get: {
 			auto idx = instruction.arg.uint32_val;
 			auto local = state.functions[current_function].
 				locals[idx];
-			stack.push_val(local.value, local.type);
+			stack.push(local.value);
 			DISPATCH();
 		}
 		local_tee: {
 			auto idx = instruction.arg.uint32_val;
-			auto type = state.functions[current_function].
-				locals[idx].type;
-			auto value = stack.pop_variant(type);
-			stack.push_val(value, type);
+			auto value = stack.top();
 			state.functions[current_function].locals[idx].
 				value = value;
 			DISPATCH();
 		}
 		i_32_eqz: {
-			auto arg = stack.pop<int32_t>();
-			stack.push<int32_t>(arg == 0);
+			auto arg = stack.top();
+			stack.pop();
+			stack.emplace(arg.int32_val == 0);
 			DISPATCH();
 		}
 		i_32_eq: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 == arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val == arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_ne: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 != arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val != arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_lt_s: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 < arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val < arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_lt_u: {
-			auto arg2 = stack.pop<uint32_t>();
-			auto arg1 = stack.pop<uint32_t>();
-			stack.push<int32_t>(arg1 < arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.uint32_val < arg2.uint32_val);
 			DISPATCH();
 		}
 		i_32_gt_s: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 > arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val > arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_gt_u: {
-			auto arg2 = stack.pop<uint32_t>();
-			auto arg1 = stack.pop<uint32_t>();
-			stack.push<int32_t>(arg1 > arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.uint32_val > arg2.uint32_val);
 			DISPATCH();
 		}
 		i_32_le_s: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 <= arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val <= arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_le_u: {
-			auto arg2 = stack.pop<uint32_t>();
-			auto arg1 = stack.pop<uint32_t>();
-			stack.push<int32_t>(arg1 <= arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.uint32_val <= arg2.uint32_val);
 			DISPATCH();
 		}
 		i_32_add: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 + arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val + arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_sub: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
 			//TODO: spec says to mod 2^32
-			stack.push<int32_t>((arg1 - arg2));
+			stack.emplace(arg1.int32_val - arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_mul: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 * arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val * arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_and: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 & arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val & arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_or: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 | arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val | arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_shl: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 << arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val << arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_shr_s: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 >> arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val >> arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_div_s: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 / arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val / arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_rem_s: {
-			auto arg2 = stack.pop<int32_t>();
-			auto arg1 = stack.pop<int32_t>();
-			stack.push<int32_t>(arg1 % arg2);
+			auto arg2 = stack.top();
+			stack.pop();
+			auto arg1 = stack.top();
+			stack.pop();
+			stack.emplace(arg1.int32_val % arg2.int32_val);
 			DISPATCH();
 		}
 		i_32_store: {
 			auto memarg = instruction.arg.memarg;
-			auto t = stack.pop<int32_t>();
-			auto i = stack.pop<int32_t>();
+			auto t = stack.top().int32_val;
+			stack.pop();
+			auto i = stack.top().int32_val;
+			stack.pop();
 			auto limit = static_cast<int>(
 					i + memarg.offset + 4);
 			if (limit > memory.get_size())
@@ -301,38 +304,40 @@ bool Interpreter::interpret(InterpreterState &state) {
 		}
 		i_32_load: {
 			auto memarg = instruction.arg.memarg;
-			auto i = stack.pop<int32_t>();
+			auto i = stack.top().int32_val;
 			auto limit = static_cast<int>(i +
 					memarg.offset + 4);
 			if (limit > memory.get_size())
 				panic("Reading too far!");
 			log_debug("reading from %d\n", i + memarg.offset);
 			auto result = memory.load<int32_t>(i + memarg.offset);
-			stack.push<int32_t>(result);
+			stack.emplace(result);
 			DISPATCH();
 		}
 		i_32_load_8_u: {
 			auto memarg = instruction.arg.memarg;
-			auto i = stack.pop<int32_t>();
+			auto i = stack.top().int32_val;
+			stack.pop();
 			auto limit = static_cast<int>(i +
 					memarg.offset + 4);
 			if (limit > memory.get_size())
 				panic("Reading too far!");
 			log_debug("reading from %d\n", i + memarg.offset);
 			auto result = memory.load<uint8_t>(i + memarg.offset);
-			stack.push<int32_t>(result);
+			stack.emplace(result);
 			DISPATCH();
 		}
 		i_32_load_8_s: {
 			auto memarg = instruction.arg.memarg;
-			auto i = stack.pop<int32_t>();
+			auto i = stack.top().int32_val;;
+			stack.pop();
 			auto limit = static_cast<int>(i +
 					memarg.offset + 4);
 			if (limit > memory.get_size())
 				panic("Reading too far!");
 			log_debug("reading from %d\n", i + memarg.offset);
 			auto result = memory.load<int8_t>(i + memarg.offset);
-			stack.push<int32_t>(result);
+			stack.emplace(result);
 			DISPATCH();
 		}
 		instr_call: {
@@ -372,7 +377,8 @@ bool Interpreter::interpret(InterpreterState &state) {
 			DISPATCH();
 		}
                 instr_if: {
-                         auto c = stack.pop<int32_t>();
+                         auto c = stack.top().int32_val;
+			 stack.pop();
                          auto arg = instruction.arg.block;
 
                          Label label;
@@ -397,7 +403,8 @@ bool Interpreter::interpret(InterpreterState &state) {
 			DISPATCH();
 		}
 		br_if: {
-			auto c = stack.pop<int32_t>();
+			auto c = stack.top().int32_val;
+			stack.pop();
 			if (!c) {
 				DISPATCH();
 			}
@@ -410,15 +417,18 @@ bool Interpreter::interpret(InterpreterState &state) {
 			DISPATCH();
 		}
 		instr_drop: {
-			stack.drop();
+			stack.pop();
 			DISPATCH();
 		}
 		instr_select: {
-			auto c = stack.pop<int32_t>();
-			auto val2 = stack.pop<int32_t>();
-			auto val1 = stack.pop<int32_t>();
-			if (c) stack.push<int32_t>(val1);
-			else stack.push<int32_t>(val2);
+			auto c = stack.top().int32_val;
+			stack.pop();
+			auto val2 = stack.top();
+			stack.pop();
+			auto val1 = stack.top();
+			stack.pop();
+			if (c) stack.push(val1);
+			else stack.push(val2);
 			DISPATCH();
 		}
 		instr_end: {
@@ -454,22 +464,8 @@ frg::optional<GlobalValue> Interpreter::interpret_global(
 	state.current_function = 0;
 	if(!interpret(state)) return frg::null_opt;
 
-	switch (*type) {
-		case EMPTY:
-			break;
-		case I_32:
-		       ret.value.int32_val = state.stack.pop<int32_t>();
-		       break;
-		case I_64:
-		       ret.value.int64_val = state.stack.pop<int64_t>();
-		       break;
-		case F_32:
-		       ret.value.float_val = state.stack.pop<float>();
-		       break;
-		case F_64:
-		       ret.value.float_val = state.stack.pop<double>();
-		       break;
-	}
+	ret.value = state.stack.top();
+	state.stack.pop();
 	return ret;
 }
 
@@ -484,7 +480,7 @@ frg::optional<uint32_t> Interpreter::interpret_offset(
 	state.current_function = 0;
 	if(!interpret(state)) return frg::null_opt;
 
-	return state.stack.pop<uint32_t>();
+	return state.stack.top().uint32_val;
 }
 
 frg::vector<Instruction, frg_allocator> Interpreter::decode_code(
